@@ -154,11 +154,23 @@ test('approve → buy → confirm → schedule → pick up → deliver → compl
   const payoutRow = adminPage.locator('[data-order-id="' + orderId + '"]');
   await payoutRow.getByTestId('mark-paid').click();
   await payoutRow.getByTestId('mark-paid-confirm').click();
-  await expect(payoutRow.getByText('שולם')).toBeVisible();
+  // Asserted on the row's state, not on the word: once `paid_at` is set, the
+  // metadata line reads "שולם <date>" as well as the badge, so matching the
+  // text is a race between two correct renderings.
+  await expect(payoutRow).toHaveAttribute('data-status', 'paid');
 
   expect((await getPayoutForOrder(orderId))?.status).toBe('paid');
 
-  // ---- 9. Every transition is in the audit ---------------------------------
+  // ---- 9. The seller was actually told, at every step -----------------------
+  // The legacy platform's emails failed silently 51 times and nobody knew.
+  await adminPage.goto('/admin/notifications?status=failed');
+  await expect(adminPage.getByTestId('notification-row')).toHaveCount(0);
+
+  await adminPage.goto('/admin/notifications');
+  const log = adminPage.getByTestId('notification-row');
+  await expect(log.filter({ hasText: 'seller@restyle.test' }).first()).toBeVisible();
+
+  // ---- 10. Every transition is in the audit ---------------------------------
   const events = (await getOrderEvents(orderId)).map((e) => e.type);
   for (const expected of [
     'order_created',
@@ -174,7 +186,7 @@ test('approve → buy → confirm → schedule → pick up → deliver → compl
     expect(events, `missing audit event: ${expected}`).toContain(expected);
   }
 
-  // ---- 10. The money still balances ----------------------------------------
+  // ---- 11. The money still balances ----------------------------------------
   const final = await getOrder(orderId);
   expect(Number(final!.commission_agorot) + Number(final!.seller_payout_agorot)).toBe(
     Number(final!.item_agorot),

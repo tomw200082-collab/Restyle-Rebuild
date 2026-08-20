@@ -16,6 +16,7 @@ const NAV = [
   { href: '/admin/deliveries', label: 'הובלות' },
   { href: '/admin/payouts', label: 'תשלומים' },
   { href: '/admin/disputes', label: 'בירורים' },
+  { href: '/admin/notifications', label: 'יומן הודעות' },
   { href: '/admin/config', label: 'הגדרות' },
 ];
 

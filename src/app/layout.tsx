@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Frank_Ruhl_Libre, Heebo } from 'next/font/google';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { Analytics } from '@/components/analytics';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { organizationJsonLd, websiteJsonLd } from '@/lib/seo/jsonld';
 import { env } from '@/lib/env';
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         {/* Site-wide entities. Emitted once, at the root, never per page. */}
         <JsonLdScript data={[organizationJsonLd(), websiteJsonLd()]} />
+        <Analytics />
         <div className="flex min-h-dvh flex-col">
           <SiteHeader />
           <main id="main" className="flex-1">
