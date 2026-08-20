@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,7 +22,9 @@
     "db:types": "tsx scripts/gen-types.ts",
     "stack:up": "tsx scripts/local-stack.ts up",
     "stack:down": "tsx scripts/local-stack.ts down",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run db:rlstest",
+    "lint:fix": "eslint . --fix",
+    "verify:all": "npm run verify && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
@@ -44,12 +46,12 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "resend": "^6.20.0",
+    "server-only": "^0.0.1",
     "sharp": "^0.35.3",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",

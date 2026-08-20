@@ -43,3 +43,45 @@ Per master prompt §9, documented here rather than left implicit.
 | Storage | Supabase Storage bucket `listing-photos` | Local file-backed storage shim on the same `/storage/v1` paths |
 
 Why this shape: using the **real** PostgREST binary means RLS is genuinely enforced end-to-end in tests rather than simulated — and RLS is the defect class that actually matters here, given the legacy app had none. Application code uses `@supabase/supabase-js` unchanged in both environments; only `NEXT_PUBLIC_SUPABASE_URL` differs. `docs/POST_RUN_HOOKUP.md` will carry the exact commands to point everything at the remote project.
+
+---
+
+## Phase 1 — Foundation ✅
+
+**Done**
+- Next.js 16.3 + React 19.2 + TypeScript (strict, `noUncheckedIndexedAccess`) + Tailwind 4 + App Router.
+- Design tokens as Tailwind 4 `@theme` variables, mirrored from the design-system skill's `references/tokens.css`.
+- Fonts: Frank Ruhl Libre (display) + Heebo (body), Hebrew subsets, `next/font`.
+- `<html lang="he" dir="rtl">`; logical properties throughout; `.ltr-isolate` utility for embedded LTR runs.
+- **16 migrations**, applied to both the local database and the remote Supabase project (`vntihvctqueohwprafwh`).
+- RLS on all 19 tables. **Supabase security advisor: 0 issues.**
+- `db/seed.ts` — idempotent, deterministic: 12 categories, 12 brands, 20 delivery zones, 4 users, 40 listings (30 active + 2 in each non-active status), 120 locally-generated placeholder photos, 5 legacy redirects keyed on real legacy ids.
+- `db/rls_test.sql` — both-direction assertions per policy, plus money invariants, append-only audit, and state-machine legality.
+- Auth: email+password, email OTP, Google OAuth; profile trigger; admin bootstrap from `ADMIN_EMAIL`.
+- Layout: sticky header with category nav, mobile drawer, footer with legal links.
+- Playwright multi-actor harness (anon/buyer/seller/admin storage states) + Gate 1 specs.
+
+**Gate 1 — all green**
+| Check | Result |
+|---|---|
+| `npm run build` | ✅ `/` static with 1h ISR |
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 problems |
+| `npm run test` (Vitest) | ✅ 16 slug tests |
+| `db/rls_test.sql` | ✅ all assertions |
+| Seed idempotency | ✅ identical counts on re-run |
+| Auth round trip (e2e) | ✅ 7 Playwright tests |
+
+**Three defects found and fixed during this phase** — all three were live in the schema before being caught:
+
+1. **Every `SECURITY DEFINER` function was an anonymous RPC endpoint.** Supabase publishes everything in `public` at `/rest/v1/rpc/*` and Postgres grants EXECUTE to PUBLIC by default, so `transition_order` and `create_order` were callable without signing in — anyone could have moved any order to `completed` or minted an order at a zero price. Found by Supabase's security advisor. → `[D-44]`, migrations 0014–0015.
+2. **`pickup_street` was never actually protected**, and worse than assumed: a column-level `revoke` is inert on top of a table-level grant, and the grant covered `authenticated` — so **any signed-in user could read every seller's home address**. Found by writing the RLS assertion for `authenticated` rather than only for `anon`. → `[D-45]`, migration 0016.
+3. **The whole site rendered dynamically.** A session-aware header in the root layout, plus supabase-js's `no-store` default fetch, each independently opt every route out of static generation — which would have quietly deleted the ISR strategy the SEO plan depends on. Found by reading the build output. → `[D-46]`.
+
+**Deviations from the master prompt**
+- Next 16 rather than 15 (spec says "15+"); TypeScript 6 rather than 7 (npm's peer resolution chose it, and it avoids depending on the compiler rewrite).
+- `npm run lint` runs ESLint directly — `next lint` was removed in Next 16.
+
+**Known gaps carried forward**
+- Google OAuth is configured but not exercised locally (no provider in the local stack) — `[D-30]`.
+- Email OTP needs a real mail provider; local sign-in is email+password.

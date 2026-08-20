@@ -16,7 +16,7 @@ import sharp from 'sharp';
 import { config as loadEnv } from 'node:process';
 import { CATEGORIES, BRANDS, DELIVERY_ZONES, USERS, LISTINGS } from './seed-data.js';
 import type { ListingSeed } from './seed-data.js';
-import { buildSlug, buildSimpleSlug } from '../src/lib/seo/slug.js';
+import { buildSlug } from '../src/lib/seo/slug.js';
 
 void loadEnv;
 
@@ -115,7 +115,7 @@ async function seedUsers() {
     // createUser is idempotent here: the local shim updates on conflict, and on
     // Supabase an existing user surfaces as an already-registered error we skip.
     const { error } = await db.auth.admin.createUser({
-      // @ts-expect-error — the local shim accepts a fixed id so fixtures stay stable.
+      // A fixed id keeps Playwright storage states and factory data stable.
       id: u.id,
       email: u.email,
       password: u.password,
@@ -154,7 +154,7 @@ function listingRow(l: ListingSeed, lookups: { categories: Lookup; brands: Looku
   const categoryId = lookups.categories.get(l.category);
   if (!categoryId) throw new Error(`unknown category slug: ${l.category}`);
 
-  const isLive = status === 'active' || status === 'sold' || status === 'reserved';
+  const isLive = status === 'active' || status === 'sold';
   const publishedAt = isLive ? daysFrom(EPOCH, -(index % 21) - 1) : null;
   const expiresAt =
     status === 'active' ? daysFrom(EPOCH, 90 - (index % 21))

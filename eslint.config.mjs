@@ -1,16 +1,29 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { FlatCompat } from '@eslint/eslintrc';
+import coreWebVitals from 'eslint-config-next/core-web-vitals';
+import typescriptConfig from 'eslint-config-next/typescript';
 
-const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) });
-
-export default [
-  { ignores: ['.next/**', 'node_modules/**', 'playwright-report/**', 'test-results/**', 'src/types/database.ts'] },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+const config = [
+  {
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
+      '.local-stack/**',
+      'src/types/database.ts',
+      'next-env.d.ts',
+    ],
+  },
+  ...coreWebVitals,
+  ...typescriptConfig,
   {
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
 ];
+
+export default config;
