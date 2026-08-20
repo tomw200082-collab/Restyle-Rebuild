@@ -44,11 +44,12 @@ export async function confirmSale(raw: unknown): Promise<OrderActionResult> {
   if (!windows.ok) return { ok: false, error: windows.error };
 
   const service = createServiceSupabase();
-  const { data: order } = await service
+  const { data: order, error: orderError } = await service
     .from('orders')
     .select('id, seller_id, buyer_id, status, paid_at, listing_id')
     .eq('id', parsed.data.orderId)
     .maybeSingle();
+  if (orderError) throw orderError;
 
   if (!order) return { ok: false, error: 'ההזמנה לא נמצאה' };
   // Authorization is checked here, not left to RLS: this path uses the service
@@ -106,11 +107,12 @@ export async function cancelOrderAsBuyer(raw: unknown): Promise<OrderActionResul
   if (!parsed.success) return { ok: false, error: 'בקשה לא תקינה' };
 
   const service = createServiceSupabase();
-  const { data: order } = await service
+  const { data: order, error: orderError } = await service
     .from('orders')
     .select('id, buyer_id, status, paid_at, total_agorot, payment_ref, listing_id, confirmed_at')
     .eq('id', parsed.data.orderId)
     .maybeSingle();
+  if (orderError) throw orderError;
 
   if (!order) return { ok: false, error: 'ההזמנה לא נמצאה' };
   if (order.buyer_id !== user.id) return { ok: false, error: 'ההזמנה אינה שלכם' };

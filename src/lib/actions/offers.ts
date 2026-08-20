@@ -32,11 +32,12 @@ export async function submitOffer(raw: unknown): Promise<OfferResult> {
   if (!parsed.success) return { ok: false, error: 'הזינו סכום תקין' };
 
   const service = createServiceSupabase();
-  const { data: listing } = await service
+  const { data: listing, error: listingError } = await service
     .from('listings')
     .select('id, seller_id, status, price_agorot')
     .eq('id', parsed.data.listingId)
     .maybeSingle();
+  if (listingError) throw listingError;
 
   if (!listing) return { ok: false, error: 'הפריט לא נמצא' };
   if (listing.status !== 'active') return { ok: false, error: 'הפריט אינו זמין להצעות' };
@@ -102,11 +103,12 @@ export async function respondToOffer(raw: unknown): Promise<OfferActionResult> {
   if (!parsed.success) return { ok: false, error: 'בקשה לא תקינה' };
 
   const service = createServiceSupabase();
-  const { data: offer } = await service
+  const { data: offer, error: offerError } = await service
     .from('offers')
     .select('id, listing_id, buyer_id, status, amount_agorot, expires_at, listings ( seller_id, price_agorot, status )')
     .eq('id', parsed.data.offerId)
     .maybeSingle();
+  if (offerError) throw offerError;
 
   if (!offer) return { ok: false, error: 'ההצעה לא נמצאה' };
   if (offer.listings?.seller_id !== user.id) return { ok: false, error: 'ההצעה אינה שלכם' };
@@ -190,11 +192,12 @@ export async function acceptCounterOffer(offerId: string): Promise<OfferActionRe
   if (!user) return { ok: false, error: 'צריך להתחבר' };
 
   const service = createServiceSupabase();
-  const { data: offer } = await service
+  const { data: offer, error: offerError } = await service
     .from('offers')
     .select('id, buyer_id, status, counter_amount_agorot, expires_at')
     .eq('id', offerId)
     .maybeSingle();
+  if (offerError) throw offerError;
 
   if (!offer) return { ok: false, error: 'ההצעה לא נמצאה' };
   if (offer.buyer_id !== user.id) return { ok: false, error: 'ההצעה אינה שלכם' };

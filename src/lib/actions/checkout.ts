@@ -49,7 +49,7 @@ export async function startCheckout(raw: unknown): Promise<CheckoutResult> {
   const input = parsed.data;
 
   const supabase = await createServerSupabase();
-  const { data: listing } = await supabase
+  const { data: listing, error: listingError } = await supabase
     .from('listings')
     // A single literal, not a concatenation: supabase-js infers the row type
     // from the select string, and a built-up string collapses it to unknown.
@@ -59,6 +59,7 @@ export async function startCheckout(raw: unknown): Promise<CheckoutResult> {
     )
     .eq('id', input.listingId)
     .maybeSingle();
+  if (listingError) throw listingError;
 
   if (!listing) return { ok: false, error: 'הפריט לא נמצא' };
   if (listing.status !== 'active') return { ok: false, error: 'הפריט כבר אינו זמין לרכישה' };
@@ -71,11 +72,12 @@ export async function startCheckout(raw: unknown): Promise<CheckoutResult> {
   // actually paid rather than the asking price. [D-09]
   let itemPriceOverride: number | undefined;
   if (input.offerId) {
-    const { data: offer } = await supabase
+    const { data: offer, error: offerError } = await supabase
       .from('offers')
       .select('id, buyer_id, listing_id, status, amount_agorot, counter_amount_agorot, checkout_expires_at')
       .eq('id', input.offerId)
       .maybeSingle();
+    if (offerError) throw offerError;
 
     if (!offer || offer.buyer_id !== user.id || offer.listing_id !== listing.id) {
       return { ok: false, error: 'ההצעה לא נמצאה' };

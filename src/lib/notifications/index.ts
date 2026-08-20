@@ -45,17 +45,60 @@ abstract class BaseNotificationProvider implements NotificationProvider {
     html: string,
   ): Promise<{ ok: boolean; error?: string }>;
 
+  /**
+   * Never throws.
+   *
+   * Every caller sends *after* committing a state change — an approval, a
+   * refund, a payout. If a template lookup or the mail API fails, the sale has
+   * still happened, and surfacing that as an action error invites the operator
+   * to retry work that already succeeded. So the failure is recorded and
+   * swallowed here, at the boundary, rather than being invisibly ignored at
+   * each of the thirty queries underneath.
+   */
   async send(request: NotificationRequest): Promise<boolean> {
+    try {
+      return await this.attempt(request);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`notification ${request.template} failed:`, reason);
+      await this.recordFailure(request, reason);
+      return false;
+    }
+  }
+
+  /** Best-effort: if even the failure log fails, there is nothing left to try. */
+  private async recordFailure(request: NotificationRequest, reason: string) {
+    try {
+      await createServiceSupabase()
+        .from('outbound_events')
+        .insert({
+          type: request.template,
+          channel: 'email',
+          recipient: request.to,
+          recipient_role: request.recipientRole ?? null,
+          subject: '',
+          payload: { ...request.data, orderId: request.orderId ?? null },
+          idempotency_key: `failed:${request.idempotencyKey ?? `${request.template}:${request.orderId ?? request.listingId ?? request.to}`}`,
+          status: 'failed',
+          error: reason,
+        });
+    } catch {
+      // Nothing further to do; the console line above is the last record.
+    }
+  }
+
+  private async attempt(request: NotificationRequest): Promise<boolean> {
     const service = createServiceSupabase();
     const key =
       request.idempotencyKey ??
       `${request.template}:${request.orderId ?? request.listingId ?? request.to}`;
 
-    const { data: existing } = await service
+    const { data: existing, error: existingError } = await service
       .from('outbound_events')
       .select('id, status')
       .eq('idempotency_key', key)
       .maybeSingle();
+    if (existingError) throw existingError;
 
     if (existing) return false;
 
@@ -68,7 +111,7 @@ abstract class BaseNotificationProvider implements NotificationProvider {
       ...request.data,
     });
 
-    const { data: row } = await service
+    const { data: row, error: rowError } = await service
       .from('outbound_events')
       .insert({
         type: request.template,
@@ -82,6 +125,7 @@ abstract class BaseNotificationProvider implements NotificationProvider {
       })
       .select('id')
       .single();
+    if (rowError) throw rowError;
 
     const result = await this.deliver(recipient, subject, text, html);
 
@@ -102,11 +146,12 @@ abstract class BaseNotificationProvider implements NotificationProvider {
   private async resolveRecipient(to: string): Promise<string | null> {
     if (!UUID.test(to)) return to;
 
-    const { data } = await createServiceSupabase()
+    const { data, error: profileError } = await createServiceSupabase()
       .from('profiles')
       .select('email')
       .eq('id', to)
       .maybeSingle();
+    if (profileError) throw profileError;
 
     return data?.email ?? null;
   }
@@ -116,11 +161,12 @@ abstract class BaseNotificationProvider implements NotificationProvider {
     const service = createServiceSupabase();
 
     if (request.orderId) {
-      const { data } = await service
+      const { data, error: orderError } = await service
         .from('orders')
         .select('id, listings!orders_listing_id_fkey ( title, slug )')
         .eq('id', request.orderId)
         .maybeSingle();
+      if (orderError) throw orderError;
 
       return {
         item: data?.listings?.title ?? '',
@@ -129,11 +175,12 @@ abstract class BaseNotificationProvider implements NotificationProvider {
     }
 
     if (request.listingId) {
-      const { data } = await service
+      const { data, error: listingError } = await service
         .from('listings')
         .select('title, slug')
         .eq('id', request.listingId)
         .maybeSingle();
+      if (listingError) throw listingError;
 
       return {
         item: data?.title ?? '',

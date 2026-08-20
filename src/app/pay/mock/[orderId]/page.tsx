@@ -30,11 +30,12 @@ export default async function MockPayPage({
   if (!(provider instanceof MockPaymentProvider)) notFound();
 
   const supabase = await createServerSupabase();
-  const { data: order } = await supabase
+  const { data: order, error } = await supabase
     .from('orders')
     .select('id, total_agorot, buyer_id, status, paid_at, listings!orders_listing_id_fkey ( title, slug )')
     .eq('id', orderId)
     .maybeSingle();
+  if (error) throw error;
 
   if (!order || order.buyer_id !== user.id) notFound();
 

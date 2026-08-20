@@ -30,11 +30,12 @@ export default async function BuyerOrderPage({ params }: { params: Promise<{ id:
   if (!order || order.buyer_id !== user.id) notFound();
 
   const supabase = await createServerSupabase();
-  const { data: delivery } = await supabase
+  const { data: delivery, error } = await supabase
     .from('deliveries')
     .select('dropoff_date, dropoff_shift, status')
     .eq('order_id', order.id)
     .maybeSingle();
+  if (error) throw error;
 
   const confirmDeadline = new Date(
     new Date(order.created_at).getTime() + config.seller_confirm_hours * 3_600_000,

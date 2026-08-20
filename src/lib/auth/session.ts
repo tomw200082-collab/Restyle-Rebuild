@@ -28,11 +28,12 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
+  if (profileError) throw profileError;
 
   return {
     id: user.id,

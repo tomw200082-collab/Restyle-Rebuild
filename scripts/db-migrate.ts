@@ -59,6 +59,14 @@ export async function migrate(connectionString: string, opts: { bootstrap?: stri
       }
     }
 
+    // PostgREST caches the schema at start-up and only refreshes on this
+    // notification. Without it a migration that adds a table, column or foreign
+    // key is invisible to the API — and an unknown embed hint is returned as an
+    // error the client usually renders as "no rows", not as a failure. Always
+    // reload, even when nothing was applied: a stale cache outlives the run
+    // that created it.
+    await client.query(`notify pgrst, 'reload schema'`);
+
     console.log(`\n${count} migration(s) applied, ${files.length - count} already present.`);
   } finally {
     await client.end();

@@ -22,7 +22,7 @@ export default async function NewCheckoutPage({
   const user = await requireUser(`/checkout/new?listing=${listingId}`);
   const supabase = await createServerSupabase();
 
-  const { data: listing } = await supabase
+  const { data: listing, error } = await supabase
     .from('listings')
     .select(
       `id, slug, title, price_agorot, status, pickup_city, pickup_floor,
@@ -32,6 +32,7 @@ export default async function NewCheckoutPage({
     )
     .eq('id', listingId)
     .maybeSingle();
+  if (error) throw error;
 
   if (!listing) notFound();
   if (listing.status !== 'active') redirect(`/item/${listing.slug}`);
@@ -39,12 +40,13 @@ export default async function NewCheckoutPage({
 
   let offerAmount: number | null = null;
   if (offerId) {
-    const { data: offer } = await supabase
+    const { data: offer, error: offerError } = await supabase
       .from('offers')
       .select('amount_agorot, counter_amount_agorot, status, checkout_expires_at')
       .eq('id', offerId)
       .eq('buyer_id', user.id)
       .maybeSingle();
+    if (offerError) throw offerError;
 
     if (offer?.status === 'accepted') {
       offerAmount = offer.counter_amount_agorot ?? offer.amount_agorot;

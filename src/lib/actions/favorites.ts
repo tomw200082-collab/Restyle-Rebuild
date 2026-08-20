@@ -16,12 +16,13 @@ export async function toggleFavorite(listingId: string): Promise<ActionResult> {
 
   const supabase = await createServerSupabase();
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from('favorites')
     .select('listing_id')
     .eq('user_id', user.id)
     .eq('listing_id', listingId)
     .maybeSingle();
+  if (existingError) throw existingError;
 
   if (existing) {
     const { error } = await supabase
@@ -46,12 +47,13 @@ export async function isFavorited(listingId: string): Promise<boolean> {
   if (!user) return false;
 
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const { data, error: dataError } = await supabase
     .from('favorites')
     .select('listing_id')
     .eq('user_id', user.id)
     .eq('listing_id', listingId)
     .maybeSingle();
+  if (dataError) throw dataError;
 
   return Boolean(data);
 }
