@@ -273,6 +273,42 @@ export type Database = {
           }
         ]
       }
+      legacy_orders: {
+        Row: {
+          legacy_id: string
+          legacy_status: string | null
+          buyer_email: string | null
+          seller_email: string | null
+          item_legacy_id: string | null
+          total_agorot: number | null
+          created_at: string | null
+          raw: Json
+          imported_at: string
+        }
+        Insert: {
+          legacy_id: string
+          legacy_status?: string | null
+          buyer_email?: string | null
+          seller_email?: string | null
+          item_legacy_id?: string | null
+          total_agorot?: number | null
+          created_at?: string | null
+          raw: Json
+          imported_at?: string
+        }
+        Update: {
+          legacy_id?: string
+          legacy_status?: string | null
+          buyer_email?: string | null
+          seller_email?: string | null
+          item_legacy_id?: string | null
+          total_agorot?: number | null
+          created_at?: string | null
+          raw?: Json
+          imported_at?: string
+        }
+        Relationships: []
+      }
       legacy_redirects: {
         Row: {
           legacy_id: string
@@ -290,6 +326,36 @@ export type Database = {
           legacy_id?: string
           legacy_path?: string | null
           new_path?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      legacy_users: {
+        Row: {
+          legacy_id: string
+          email: string
+          full_name: string | null
+          phone: string | null
+          city: string | null
+          raw: Json
+          created_at: string
+        }
+        Insert: {
+          legacy_id: string
+          email: string
+          full_name?: string | null
+          phone?: string | null
+          city?: string | null
+          raw: Json
+          created_at?: string
+        }
+        Update: {
+          legacy_id?: string
+          email?: string
+          full_name?: string | null
+          phone?: string | null
+          city?: string | null
+          raw?: Json
           created_at?: string
         }
         Relationships: []
