@@ -101,6 +101,21 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      {
+        // Machine and authenticated surfaces. `robots.ts` already disallows
+        // these paths, but robots.txt is a request not to crawl; the header is
+        // a request not to *index*, and the two are answered by different
+        // parts of a crawler. A URL that leaks into an index from a link
+        // elsewhere is not covered by the first and is by the second.
+        source: '/:path(api|admin|dashboard|checkout|pay|login|auth)/:rest*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          // An authenticated page cached by an intermediary is one user's data
+          // served to the next. `private` is not enough on its own — a shared
+          // cache honours `no-store`, and these pages are never worth caching.
+          { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+        ],
+      },
     ];
   },
 };

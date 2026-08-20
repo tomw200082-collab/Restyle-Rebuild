@@ -1,0 +1,98 @@
+{
+  "home": {
+    "scores": {
+      "performance": 92,
+      "seo": 100,
+      "accessibility": 100
+    },
+    "runs": [
+      {
+        "performance": 93,
+        "seo": 100,
+        "accessibility": 100
+      },
+      {
+        "performance": 92,
+        "seo": 100,
+        "accessibility": 100
+      },
+      {
+        "performance": 92,
+        "seo": 100,
+        "accessibility": 100
+      }
+    ],
+    "slowestAudits": [
+      "unused-javascript (150ms)",
+      "legacy-javascript (150ms)"
+    ],
+    "failedAudits": {
+      "accessibility": [],
+      "seo": []
+    }
+  },
+  "category": {
+    "scores": {
+      "performance": 92,
+      "seo": 100,
+      "accessibility": 100
+    },
+    "runs": [
+      {
+        "performance": 93,
+        "seo": 100,
+        "accessibility": 100
+      },
+      {
+        "performance": 92,
+        "seo": 100,
+        "accessibility": 100
+      },
+      {
+        "performance": 92,
+        "seo": 100,
+        "accessibility": 100
+      }
+    ],
+    "slowestAudits": [
+      "unused-javascript (300ms)",
+      "legacy-javascript (150ms)"
+    ],
+    "failedAudits": {
+      "accessibility": [],
+      "seo": []
+    }
+  },
+  "item": {
+    "scores": {
+      "performance": 92,
+      "seo": 100,
+      "accessibility": 100
+    },
+    "runs": [
+      {
+        "performance": 93,
+        "seo": 100,
+        "accessibility": 100
+      },
+      {
+        "performance": 92,
+        "seo": 82,
+        "accessibility": 88
+      },
+      {
+        "performance": 92,
+        "seo": 100,
+        "accessibility": 100
+      }
+    ],
+    "slowestAudits": [
+      "unused-javascript (300ms)",
+      "legacy-javascript (150ms)"
+    ],
+    "failedAudits": {
+      "accessibility": [],
+      "seo": []
+    }
+  }
+}

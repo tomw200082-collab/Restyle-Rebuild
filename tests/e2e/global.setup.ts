@@ -43,5 +43,30 @@ setup('authenticate actors', async ({ browser }) => {
 
     await context.storageState({ path: `.auth/${role}.json` });
     await context.close();
+
+    // Prove the file we just wrote actually restores a session.
+    //
+    // Asserting the login worked is not the same as asserting the *saved
+    // state* works, and the difference is not theoretical: CI's first e2e run
+    // had this setup pass and then every buyer spec fail on an unrelated
+    // locator thirty seconds later, because the specs were running signed out.
+    // Eleven timeouts named a select element; none of them named the session.
+    //
+    // A check that cannot read its own result has not passed [SPEC.md §10], so
+    // the state is reloaded into a fresh context here and asked the same
+    // question the login asked. If it fails, it fails once, in the setup, with
+    // the role in the message.
+    const restored = await browser.newContext({ storageState: `.auth/${role}.json` });
+    try {
+      const check = await restored.newPage();
+      await check.goto('/');
+      await expect(
+        check.getByRole('button', { name: new RegExp(role) }),
+        `.auth/${role}.json does not restore a signed-in session — every ${role} spec ` +
+          `would run anonymously and fail on whatever locator it reached first`,
+      ).toBeVisible();
+    } finally {
+      await restored.close();
+    }
   }
 });

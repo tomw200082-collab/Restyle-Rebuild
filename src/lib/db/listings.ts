@@ -28,7 +28,7 @@ const CARD_COLUMNS = `
 
 const DETAIL_COLUMNS = `
   id, slug, title, description, price_agorot, original_price_agorot, condition,
-  width_cm, depth_cm, height_cm,
+  width_cm, depth_cm, height_cm, size_class,
   pickup_city, pickup_floor, pickup_has_elevator, needs_disassembly,
   allow_self_pickup, status, published_at, expires_at, view_count,
   seller_id, brand_free_text, commission_pct_override,
@@ -40,6 +40,16 @@ const DETAIL_COLUMNS = `
 
 /** Statuses a listing must be in to be publicly visible. Sold stays live. */
 export const PUBLIC_STATUSES: Enums<'listing_status'>[] = ['active', 'reserved', 'sold'];
+
+/**
+ * What the *item page* will render, as opposed to what the catalogue lists.
+ *
+ * A paused listing is out of the catalogue — that is the whole point of pausing
+ * it — but its page still returns 200 with an unavailable state. The inbound
+ * link that page earned is an asset, and unlike a sold item a paused one is
+ * likely to come back. Same reasoning as sold pages never 404. [D-33], [D-73]
+ */
+export const DETAIL_STATUSES: Enums<'listing_status'>[] = [...PUBLIC_STATUSES, 'paused'];
 
 export type ListingCard = {
   id: string;
@@ -133,7 +143,7 @@ export async function getListingBySlug(slug: string) {
     .from('listings')
     .select(DETAIL_COLUMNS)
     .eq('slug', slug)
-    .in('status', PUBLIC_STATUSES)
+    .in('status', DETAIL_STATUSES)
     .maybeSingle();
 
   if (error) throw error;

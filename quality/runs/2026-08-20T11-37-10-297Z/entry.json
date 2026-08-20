@@ -1,0 +1,186 @@
+{
+  "at": "2026-08-20T11:37:10.297Z",
+  "commit": "bae6790",
+  "branch": "claude/restyle-os-run-2-hi1cdq",
+  "verdict": "fail",
+  "complete": false,
+  "counts": {
+    "pass": 11,
+    "fail": 0,
+    "skipped": 2
+  },
+  "target": "https://vntihvctqueohwprafwh.supabase.co",
+  "stages": [
+    {
+      "id": "build",
+      "name": "build + typecheck + lint",
+      "durationMs": 21553,
+      "status": "pass",
+      "detail": "typecheck, lint and production build clean",
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/build.log"
+      ]
+    },
+    {
+      "id": "unit",
+      "name": "unit tests",
+      "durationMs": 1661,
+      "status": "pass",
+      "detail": "98 unit tests passed",
+      "metrics": {
+        "tests": 98
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/unit.log"
+      ]
+    },
+    {
+      "id": "rls",
+      "name": "RLS assertion suite",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "DATABASE_URL unset — the RLS suite needs a local reference database",
+      "metrics": {
+        "reason": "rls-fixture-absent"
+      }
+    },
+    {
+      "id": "e2e",
+      "name": "end-to-end, four actor roles",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "target https://vntihvctqueohwprafwh.supabase.co is not a local stack — refusing to run e2e against it (CI runs it)",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "jsonld",
+      "name": "JSON-LD structured data",
+      "durationMs": 1165,
+      "status": "pass",
+      "detail": "structured data valid",
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/jsonld.log"
+      ]
+    },
+    {
+      "id": "hebrew-copy",
+      "name": "Hebrew copy lint",
+      "durationMs": 85,
+      "status": "pass",
+      "detail": "no English leakage across 89 components",
+      "metrics": {
+        "leaks": 0,
+        "filesScanned": 89
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/hebrew-copy.txt"
+      ]
+    },
+    {
+      "id": "status-codes",
+      "name": "status codes on every public route",
+      "durationMs": 582,
+      "status": "pass",
+      "detail": "25 routes returned their expected status",
+      "metrics": {
+        "checked": 25,
+        "wrong": 0
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/status-codes.txt"
+      ]
+    },
+    {
+      "id": "contrast",
+      "name": "computed contrast, WCAG AA",
+      "durationMs": 19998,
+      "status": "pass",
+      "detail": "255 interactive elements at or above AA",
+      "metrics": {
+        "elements": 255,
+        "below": 0
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/contrast.txt"
+      ]
+    },
+    {
+      "id": "axe",
+      "name": "axe accessibility scan",
+      "durationMs": 32703,
+      "status": "pass",
+      "detail": "0 critical violations across 20 pages (2 serious, reported)",
+      "metrics": {
+        "critical": 0,
+        "serious": 2
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/axe.txt"
+      ]
+    },
+    {
+      "id": "lighthouse",
+      "name": "Lighthouse budgets",
+      "durationMs": 90435,
+      "status": "pass",
+      "detail": "home 92/100/100 · category 92/100/100 · item 92/100/100 (perf/a11y/seo, median of 3)",
+      "metrics": {
+        "home.performance": 92,
+        "home.seo": 100,
+        "home.accessibility": 100,
+        "category.performance": 92,
+        "category.seo": 100,
+        "category.accessibility": 100,
+        "item.performance": 92,
+        "item.seo": 100,
+        "item.accessibility": 100
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/lighthouse.json"
+      ]
+    },
+    {
+      "id": "rtl-screenshots",
+      "name": "RTL layout at 390px",
+      "durationMs": 13357,
+      "status": "pass",
+      "detail": "10 pages are rtl and fit 390px without sideways scroll",
+      "metrics": {
+        "checked": 10
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/rtl-layout.txt",
+        "quality/runs/2026-08-20T11-37-10-297Z/screenshots"
+      ]
+    },
+    {
+      "id": "sold-200",
+      "name": "sold pages still return 200",
+      "durationMs": 350,
+      "status": "pass",
+      "detail": "sold item page returns 200",
+      "metrics": {
+        "slug": "aglt-hgshh-shti-komot-matechet-oatz-demo25"
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/sold-page.txt"
+      ]
+    },
+    {
+      "id": "sitemap-coverage",
+      "name": "sitemap coverage vs live routes",
+      "durationMs": 1519,
+      "status": "pass",
+      "detail": "48 sitemap URLs, all resolving; 14 routes covered",
+      "metrics": {
+        "sitemapUrls": 48,
+        "liveRoutes": 14
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T11-37-10-297Z/sitemap-coverage.txt"
+      ]
+    }
+  ]
+}

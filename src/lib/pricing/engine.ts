@@ -78,6 +78,17 @@ export function computeOrderPricing(
   let zone: DeliveryZone | null = null;
   const surcharges: Surcharge[] = [];
 
+  /**
+   * A surcharge configured to zero is a surcharge the operator turned off, and
+   * turning it off should turn it off — not leave a «תוספת פריט גדול ₪0» row on
+   * the checkout page for the buyer to wonder about. Every amount reaching
+   * `surcharges` is therefore positive, which also means `surcharges_agorot` and
+   * the rendered list can never disagree about whether anything was charged.
+   */
+  const addSurcharge = (surcharge: Surcharge | null) => {
+    if (surcharge && surcharge.amount_agorot > 0) surcharges.push(surcharge);
+  };
+
   if (delivery.method === 'platform') {
     const dropoff = lookupZone(delivery.city);
     if (!dropoff) throw new OutOfServiceAreaError(delivery.city);
@@ -94,16 +105,29 @@ export function computeOrderPricing(
       listing.pickup_has_elevator,
       config,
     );
-    if (pickupSurcharge) surcharges.push(pickupSurcharge);
+    addSurcharge(pickupSurcharge);
 
     const dropoffSurcharge = floorSurcharge('dropoff', delivery.floor, delivery.hasElevator, config);
-    if (dropoffSurcharge) surcharges.push(dropoffSurcharge);
+    addSurcharge(dropoffSurcharge);
 
     if (listing.needs_disassembly) {
-      surcharges.push({
+      addSurcharge({
         code: 'disassembly',
         label: 'פירוק והרכבה',
         amount_agorot: config.disassembly_surcharge_agorot,
+      });
+    }
+
+    // A bulky item is two people and a full van. Zone fees are flat and the
+    // catalogue skews large, so without this the flat fee sits below cost on
+    // exactly the items the platform sells most of. Charged once, and only when
+    // the platform is doing the moving — the same reasoning as disassembly,
+    // and the same reason self-pickup pays neither. [D-72], [D-08]
+    if (listing.size_class === 'bulky') {
+      addSurcharge({
+        code: 'bulky',
+        label: 'תוספת פריט גדול',
+        amount_agorot: config.bulky_surcharge_agorot,
       });
     }
   }

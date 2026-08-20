@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Container } from '@/components/layout/container';
 import { Badge } from '@/components/ui/badge';
+import { UnpauseSellerButton } from '@/components/admin/unpause-seller-button';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { formatPrice, formatShortDate } from '@/lib/format';
 import { LISTING_STATUS_LABELS } from '@/lib/labels';
@@ -17,6 +18,7 @@ const TONE: Record<Enums<'listing_status'>, 'neutral' | 'success' | 'warning' | 
   sold: 'ink',
   rejected: 'danger',
   expired: 'neutral',
+  paused: 'warning',
   removed: 'neutral',
 };
 
@@ -31,7 +33,7 @@ export default async function AdminListingsPage({
   let query = service
     .from('listings')
     .select(
-      `id, slug, title, price_agorot, status, pickup_city, created_at, view_count,
+      `id, slug, title, price_agorot, status, pickup_city, created_at, view_count, seller_id,
        profiles!listings_seller_profile_fk ( full_name )`,
     )
     .order('created_at', { ascending: false })
@@ -44,7 +46,7 @@ export default async function AdminListingsPage({
   const rows = listings ?? [];
 
   const STATUSES: Array<Enums<'listing_status'> | ''> = [
-    '', 'pending_review', 'active', 'reserved', 'sold', 'rejected', 'expired', 'draft',
+    '', 'pending_review', 'active', 'paused', 'reserved', 'sold', 'rejected', 'expired', 'draft',
   ];
 
   return (
@@ -75,6 +77,7 @@ export default async function AdminListingsPage({
               <th className="p-3 text-end font-medium">מחיר</th>
               <th className="p-3 text-start font-medium">סטטוס</th>
               <th className="p-3 text-start font-medium">נוצר</th>
+              <th className="p-3 text-start font-medium">פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -94,6 +97,17 @@ export default async function AdminListingsPage({
                   <Badge tone={TONE[listing.status]}>{LISTING_STATUS_LABELS[listing.status]}</Badge>
                 </td>
                 <td className="p-3 text-ink-muted">{formatShortDate(listing.created_at)}</td>
+                <td className="p-3">
+                  {/* The pause was applied to the seller, so the undo is too.
+                      Shown only on a paused row, because that is the only place
+                      an operator is looking when they want it. [D-74] */}
+                  {listing.status === 'paused' ? (
+                    <UnpauseSellerButton
+                      sellerId={listing.seller_id}
+                      sellerName={listing.profiles?.full_name ?? null}
+                    />
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>

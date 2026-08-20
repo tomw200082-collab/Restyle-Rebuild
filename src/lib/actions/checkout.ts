@@ -59,7 +59,8 @@ export async function startCheckout(raw: unknown): Promise<CheckoutResult> {
     // from the select string, and a built-up string collapses it to unknown.
     .select(
       `id, seller_id, title, price_agorot, status, pickup_city, pickup_floor,
-       pickup_has_elevator, needs_disassembly, allow_self_pickup, commission_pct_override`,
+       pickup_has_elevator, needs_disassembly, allow_self_pickup, commission_pct_override,
+       size_class`,
     )
     .eq('id', input.listingId)
     .maybeSingle();

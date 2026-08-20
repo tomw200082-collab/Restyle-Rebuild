@@ -1,0 +1,16 @@
+OK   / — 18 interactive elements
+OK   /accessibility — 9 interactive elements
+OK   /buyer-protection — 10 interactive elements
+OK   /cancellation-policy — 9 interactive elements
+OK   /catalog — 20 interactive elements
+OK   /how-it-works — 13 interactive elements
+OK   /privacy — 9 interactive elements
+OK   /sell — 11 interactive elements
+OK   /sell/new/submitted — 11 interactive elements
+OK   /terms — 9 interactive elements
+OK   /category/sofas-armchairs — 10 interactive elements
+OK   /category/tables — 10 interactive elements
+OK   /category/chairs — 10 interactive elements
+OK   /brand/ikea — 10 interactive elements
+OK   /brand/habitat — 10 interactive elements
+OK   /brand/id-design — 10 interactive elements

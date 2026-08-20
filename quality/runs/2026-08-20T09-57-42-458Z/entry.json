@@ -1,0 +1,152 @@
+{
+  "at": "2026-08-20T09:57:42.458Z",
+  "commit": "afc4e50",
+  "branch": "claude/restyle-os-run-2-hi1cdq",
+  "verdict": "fail",
+  "complete": false,
+  "counts": {
+    "pass": 3,
+    "fail": 0,
+    "skipped": 10
+  },
+  "target": "https://vntihvctqueohwprafwh.supabase.co",
+  "stages": [
+    {
+      "id": "build",
+      "name": "build + typecheck + lint",
+      "durationMs": 21426,
+      "status": "pass",
+      "detail": "typecheck, lint and production build clean",
+      "evidence": [
+        "quality/runs/2026-08-20T09-57-42-458Z/build.log"
+      ]
+    },
+    {
+      "id": "unit",
+      "name": "unit tests",
+      "durationMs": 1874,
+      "status": "pass",
+      "detail": "85 unit tests passed",
+      "metrics": {
+        "tests": 85
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T09-57-42-458Z/unit.log"
+      ]
+    },
+    {
+      "id": "rls",
+      "name": "RLS assertion suite",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "DATABASE_URL unset — the RLS suite needs a local reference database",
+      "metrics": {
+        "reason": "rls-fixture-absent"
+      }
+    },
+    {
+      "id": "e2e",
+      "name": "end-to-end, four actor roles",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "jsonld",
+      "name": "JSON-LD structured data",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "hebrew-copy",
+      "name": "Hebrew copy lint",
+      "durationMs": 86,
+      "status": "pass",
+      "detail": "no English leakage across 88 components",
+      "metrics": {
+        "leaks": 0,
+        "filesScanned": 88
+      },
+      "evidence": [
+        "quality/runs/2026-08-20T09-57-42-458Z/hebrew-copy.txt"
+      ]
+    },
+    {
+      "id": "status-codes",
+      "name": "status codes on every public route",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "contrast",
+      "name": "computed contrast, WCAG AA",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "axe",
+      "name": "axe accessibility scan",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "lighthouse",
+      "name": "Lighthouse budgets",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "rtl-screenshots",
+      "name": "RTL screenshots at 390px",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "sold-200",
+      "name": "sold pages still return 200",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    },
+    {
+      "id": "sitemap-coverage",
+      "name": "sitemap coverage vs live routes",
+      "durationMs": 0,
+      "status": "skipped",
+      "detail": "--fast: browser and origin stages not run",
+      "metrics": {
+        "reason": "browser-unavailable"
+      }
+    }
+  ]
+}

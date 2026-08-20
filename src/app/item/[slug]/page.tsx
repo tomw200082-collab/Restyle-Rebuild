@@ -71,6 +71,13 @@ export default async function ItemPage({ params }: Params) {
 
   const isSold = listing.status === 'sold';
   const isReserved = listing.status === 'reserved';
+  // A paused listing is out of the catalogue but its page still returns 200:
+  // the inbound link it earned is an asset, and unlike a sold item a paused one
+  // is likely to come back. Same reasoning as sold pages never 404. [D-33], [D-74]
+  const isPaused = listing.status === 'paused';
+  // Everything that offers to sell the item is gated on this one flag, so a
+  // future terminal-ish status cannot half-enable the buy button.
+  const isPurchasable = !isSold && !isPaused;
   const brandName = listing.brands?.name ?? listing.brand_free_text;
 
   const pricingListing = {
@@ -79,6 +86,7 @@ export default async function ItemPage({ params }: Params) {
     pickup_floor: listing.pickup_floor,
     pickup_has_elevator: listing.pickup_has_elevator,
     needs_disassembly: listing.needs_disassembly,
+    size_class: listing.size_class,
     commission_pct_override: listing.commission_pct_override,
   };
 
@@ -140,6 +148,7 @@ export default async function ItemPage({ params }: Params) {
             <div>
               {isSold ? <Badge tone="ink">נמכר</Badge> : null}
               {isReserved ? <Badge tone="clay">בתהליך רכישה</Badge> : null}
+              {isPaused ? <Badge tone="warning">לא זמין כרגע</Badge> : null}
 
               <h1 className="mt-2 font-display text-h1 text-ink">{listing.title}</h1>
 
@@ -155,9 +164,11 @@ export default async function ItemPage({ params }: Params) {
               </div>
             </div>
 
-            {isSold ? (
+            {isSold || isPaused ? (
               <div className="rounded-lg border border-line bg-sand/50 p-4">
-                <p className="text-body text-ink">הפריט הזה נמכר.</p>
+                <p className="text-body text-ink">
+                  {isSold ? 'הפריט הזה נמכר.' : 'הפריט הזה לא זמין לרכישה כרגע.'}
+                </p>
                 <p className="mt-1 text-body-sm text-ink-muted">
                   הנה כמה פריטים דומים שזמינים עכשיו.
                 </p>
@@ -173,7 +184,7 @@ export default async function ItemPage({ params }: Params) {
               </div>
             )}
 
-            {!isSold ? <FavoriteButton listingId={listing.id} /> : null}
+            {isPurchasable ? <FavoriteButton listingId={listing.id} /> : null}
 
             <dl className="divide-y divide-line rounded-lg border border-line bg-surface text-body-sm">
               <Spec label="מצב" value={CONDITION_LABELS[listing.condition]} />
@@ -191,11 +202,11 @@ export default async function ItemPage({ params }: Params) {
               {listing.needs_disassembly ? <Spec label="פירוק והרכבה" value="נדרש" /> : null}
             </dl>
 
-            {!isSold ? (
+            {isPurchasable ? (
               <DeliveryEstimator listing={pricingListing} config={config} zones={zones} />
             ) : null}
 
-            {listing.allow_self_pickup && !isSold ? (
+            {listing.allow_self_pickup && isPurchasable ? (
               <p className="text-body-sm text-ink-muted">
                 איסוף עצמי — ללא עלות הובלה. פרטי המוכר נמסרים אחרי התשלום.
               </p>

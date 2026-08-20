@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,21 @@ import { createPublicSupabase } from '@/lib/supabase/public';
 import { tags } from '@/lib/cache/tags';
 
 export const revalidate = 3600;
+
+/**
+ * The home page inherits its title and description from the root layout, but a
+ * canonical cannot be inherited: putting `alternates.canonical` in the layout
+ * would make every page that does not override it claim `/` as its canonical.
+ * So the highest-authority URL on the site was the one page shipping without
+ * one, and any variant that serves it — `/?utm_source=…`, a trailing slash, an
+ * alternate host — could be indexed separately and split its authority.
+ *
+ * Found by `route-auditor`, which is exactly the surface nothing in the
+ * application ever requests. [D-67]
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 const HOW_IT_WORKS = [
   { title: 'בוחרים פריט', body: 'כל פריט בקטלוג עבר בדיקה שלנו, עם מידות, מצב ותמונות אמיתיות.' },

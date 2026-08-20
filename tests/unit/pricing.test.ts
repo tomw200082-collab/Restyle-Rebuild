@@ -5,13 +5,14 @@ import {
   minimumOfferAgorot,
   sellerPayoutFor,
 } from '@/lib/pricing/engine';
-import type { PricingConfig, PricingListing, ZoneLookup } from '@/lib/pricing/types';
+import type { PricingConfig, PricingListing, Surcharge, ZoneLookup } from '@/lib/pricing/types';
 
 const config: PricingConfig = {
   commission_pct: 20,
   floor_surcharge_agorot: 5000,
   floor_surcharge_min_floor: 3,
   disassembly_surcharge_agorot: 10000,
+  bulky_surcharge_agorot: 8000,
   cancellation_fee_agorot: 5000,
   offer_min_pct: 60,
   min_price_agorot: 5000,
@@ -32,6 +33,7 @@ const listing = (over: Partial<PricingListing> = {}): PricingListing => ({
   pickup_floor: 0,
   pickup_has_elevator: false,
   needs_disassembly: false,
+  size_class: 'standard',
   ...over,
 });
 
@@ -275,5 +277,124 @@ describe('seller-facing helpers', () => {
     // 60% of 33,333 = 19,999.8 -> 20,000
     expect(minimumOfferAgorot(33_333, config)).toBe(20_000);
     expect(minimumOfferAgorot(100_000, config)).toBe(60_000);
+  });
+});
+
+/**
+ * The bulky surcharge. [D-72]
+ *
+ * Zone fees are flat — ₪149 / ₪199 / ₪249 — and the legacy catalogue was about
+ * 60% tier-4 items, so the flat fee sits below cost on exactly the items the
+ * platform sells most of. The fix prices size rather than distance, because the
+ * zone headline is a published promise and a named surcharge is legible at
+ * checkout in a way a raised base price is not.
+ */
+describe('bulky surcharge', () => {
+  const surchargeOf = (p: { surcharges: Surcharge[] }, code: string) =>
+    p.surcharges.find((s) => s.code === code);
+
+  it('charges a bulky item once, on top of the unchanged zone fee', () => {
+    const p = computeOrderPricing(
+      listing({ size_class: 'bulky' }),
+      { method: 'platform', city: 'תל אביב-יפו', floor: 1, hasElevator: true },
+      config,
+      lookupZone,
+    );
+
+    // The zone fee itself must not move. ₪149 is the headline.
+    expect(p.delivery_agorot).toBe(14900);
+    expect(surchargeOf(p, 'bulky')?.amount_agorot).toBe(8000);
+    expect(p.surcharges.filter((s) => s.code === 'bulky')).toHaveLength(1);
+    expect(p.surcharges_agorot).toBe(8000);
+    expect(p.total_agorot).toBe(100_000 + 14_900 + 8_000);
+  });
+
+  it('charges nothing extra for a standard item', () => {
+    const p = computeOrderPricing(
+      listing({ size_class: 'standard' }),
+      { method: 'platform', city: 'תל אביב-יפו', floor: 1, hasElevator: true },
+      config,
+      lookupZone,
+    );
+    expect(surchargeOf(p, 'bulky')).toBeUndefined();
+    expect(p.surcharges_agorot).toBe(0);
+  });
+
+  it('does not charge it on self-pickup — the platform is not doing the moving', () => {
+    const p = computeOrderPricing(
+      listing({ size_class: 'bulky', needs_disassembly: true }),
+      { method: 'self_pickup' },
+      config,
+      lookupZone,
+    );
+    expect(p.surcharges).toEqual([]);
+    expect(p.delivery_agorot).toBe(0);
+    expect(p.total_agorot).toBe(100_000);
+  });
+
+  it('stacks with floor and disassembly rather than replacing them', () => {
+    const p = computeOrderPricing(
+      listing({
+        size_class: 'bulky',
+        needs_disassembly: true,
+        pickup_floor: 4,
+        pickup_has_elevator: false,
+      }),
+      { method: 'platform', city: 'כפר סבא', floor: 5, hasElevator: false },
+      config,
+      lookupZone,
+    );
+
+    expect(p.surcharges.map((s) => s.code).sort()).toEqual(
+      ['bulky', 'disassembly', 'floor_dropoff', 'floor_pickup'].sort(),
+    );
+    // ₪50 + ₪50 + ₪100 + ₪80
+    expect(p.surcharges_agorot).toBe(5000 + 5000 + 10_000 + 8000);
+    expect(p.delivery_agorot).toBe(24_900);
+    expect(p.total_agorot).toBe(100_000 + 24_900 + 28_000);
+  });
+
+  it('carries a Hebrew label, like every other surcharge the buyer sees', () => {
+    const p = computeOrderPricing(
+      listing({ size_class: 'bulky' }),
+      { method: 'platform', city: 'חולון', floor: 0, hasElevator: true },
+      config,
+      lookupZone,
+    );
+    expect(surchargeOf(p, 'bulky')?.label).toBe('תוספת פריט גדול');
+    for (const s of p.surcharges) expect(s.label).toMatch(/[֐-׿]/);
+  });
+
+  it('leaves commission and payout untouched — the surcharge is delivery revenue', () => {
+    const standard = computeOrderPricing(
+      listing({ size_class: 'standard' }),
+      { method: 'platform', city: 'חולון', floor: 0, hasElevator: true },
+      config,
+      lookupZone,
+    );
+    const bulky = computeOrderPricing(
+      listing({ size_class: 'bulky' }),
+      { method: 'platform', city: 'חולון', floor: 0, hasElevator: true },
+      config,
+      lookupZone,
+    );
+
+    // The seller is paid for the item; the platform is paid for the van.
+    expect(bulky.commission_agorot).toBe(standard.commission_agorot);
+    expect(bulky.seller_payout_agorot).toBe(standard.seller_payout_agorot);
+    expect(bulky.commission_agorot + bulky.seller_payout_agorot).toBe(bulky.item_agorot);
+  });
+
+  it('honours a configured surcharge of zero without emitting a ₪0 line', () => {
+    // An operator turning the surcharge off should turn it off, not leave a
+    // "תוספת פריט גדול ₪0" row on the checkout page.
+    const p = computeOrderPricing(
+      listing({ size_class: 'bulky' }),
+      { method: 'platform', city: 'חולון', floor: 0, hasElevator: true },
+      { ...config, bulky_surcharge_agorot: 0 },
+      lookupZone,
+    );
+    expect(surchargeOf(p, 'bulky')).toBeUndefined();
+    expect(p.surcharges_agorot).toBe(0);
   });
 });

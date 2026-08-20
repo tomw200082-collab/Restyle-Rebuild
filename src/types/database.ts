@@ -448,6 +448,7 @@ export type Database = {
           expires_at: string | null
           created_at: string
           updated_at: string
+          size_class: Database["public"]["Enums"]["listing_size_class"]
         }
         Insert: {
           id?: string
@@ -480,6 +481,7 @@ export type Database = {
           expires_at?: string | null
           created_at?: string
           updated_at?: string
+          size_class?: Database["public"]["Enums"]["listing_size_class"]
         }
         Update: {
           id?: string
@@ -512,6 +514,7 @@ export type Database = {
           expires_at?: string | null
           created_at?: string
           updated_at?: string
+          size_class?: Database["public"]["Enums"]["listing_size_class"]
         }
         Relationships: [
           {
@@ -945,6 +948,8 @@ export type Database = {
           role: string
           created_at: string
           updated_at: string
+          expired_confirmations: number
+          listings_paused_at: string | null
         }
         Insert: {
           id: string
@@ -955,6 +960,8 @@ export type Database = {
           role?: string
           created_at?: string
           updated_at?: string
+          expired_confirmations?: number
+          listings_paused_at?: string | null
         }
         Update: {
           id?: string
@@ -965,6 +972,8 @@ export type Database = {
           role?: string
           created_at?: string
           updated_at?: string
+          expired_confirmations?: number
+          listings_paused_at?: string | null
         }
         Relationships: [
           {
@@ -1110,6 +1119,15 @@ export type Database = {
       }
     }
     Functions: {
+      classify_size: {
+        Args: {
+          p_width_cm?: number | null
+          p_depth_cm?: number | null
+          p_height_cm?: number | null
+          p_category_slug?: string | null
+        }
+        Returns: Database["public"]["Enums"]["listing_size_class"]
+      }
       consume_rate_limit: {
         Args: {
           p_bucket?: string | null
@@ -1150,6 +1168,13 @@ export type Database = {
           p_actor?: string | null
         }
         Returns: undefined
+      }
+      pause_seller_listings: {
+        Args: {
+          p_seller_id?: string | null
+          p_reason?: string | null
+        }
+        Returns: number
       }
       prune_rate_limits: {
         Args: {
@@ -1192,11 +1217,19 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["orders"]["Row"]
       }
+      unpause_seller_listings: {
+        Args: {
+          p_seller_id?: string | null
+          p_actor?: string | null
+        }
+        Returns: number
+      }
     }
     Enums: {
       delivery_shift: "morning" | "afternoon" | "evening"
       listing_condition: "like_new" | "excellent" | "good" | "fair"
-      listing_status: "draft" | "pending_review" | "active" | "reserved" | "sold" | "rejected" | "expired" | "removed"
+      listing_size_class: "standard" | "bulky"
+      listing_status: "draft" | "pending_review" | "active" | "reserved" | "sold" | "rejected" | "expired" | "removed" | "paused"
       offer_status: "pending" | "accepted" | "declined" | "countered" | "expired"
       order_status: "pending_seller_confirmation" | "confirmed" | "delivery_scheduled" | "picked_up" | "delivered" | "completed" | "cancelled" | "disputed" | "refunded"
     }

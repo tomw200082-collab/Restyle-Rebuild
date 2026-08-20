@@ -141,3 +141,128 @@ not, and is why there are no down-migrations.
   edited or deleted, by anyone, including the service role.
 - **`/admin`** carries the two KPIs that decide the business: the
   seller-confirmation rate and the delivery margin.
+
+---
+
+# v2 — CI, branch protection, and the release gate
+
+Added in Run 2. Everything above still applies; this section is about what
+guards `main` and what runs before a deploy.
+
+## GitHub Actions secrets and variables
+
+**Settings → Secrets and variables → Actions.**
+
+| name | kind | needed by | value |
+|---|---|---|---|
+| `SUPABASE_DB_URL` | secret | `drift-weekly.yml` | Supabase → Project Settings → Database → **Connection string (URI)**, the direct connection, not the pooler |
+| `ANTHROPIC_API_KEY` | secret | `claude.yml` | only if you enable the @claude responder |
+| `CLAUDE_ENABLED` | variable | `claude.yml` | set to `true` to enable it; anything else leaves it off |
+
+`ci.yml` and `release-gate.yml` need **no secrets at all**. They run against a
+local Supabase stack that `supabase start` creates per run, with keys it
+generates itself. That is deliberate: the end-to-end suite signs up users and
+drives orders through to payout and refund, and against the real project it
+would do all of that for real `[D-65]`.
+
+`drift-weekly.yml` **fails loudly if `SUPABASE_DB_URL` is missing** rather than
+skipping. A drift check that quietly does nothing every Monday is worse than no
+drift check, because it looks like one.
+
+## The four workflows
+
+| workflow | when | what it proves |
+|---|---|---|
+| `ci.yml` | every PR, and pushes to `main` | typecheck, lint, unit, the static gate stages; and — on a real Supabase stack — the **RLS suite**, the **e2e suite across four actor roles**, and JSON-LD |
+| `release-gate.yml` | PRs targeting `main` | the **full** gate: contrast, axe, Lighthouse budgets, RTL visual diff, sitemap coverage, sold-page 200. Uploads `scorecard.json`, commits the entry on green |
+| `drift-weekly.yml` | Mondays 05:00 UTC, or on demand | `supabase/migrations` still equals the live schema, object by object. Opens (or updates) an issue on drift |
+| `claude.yml` | `@claude` on a PR | disabled until `CLAUDE_ENABLED=true` |
+
+`ci.yml` is the fast lane and `release-gate.yml` is the slow one. Splitting them
+is not cosmetic: a gate slow enough to be resented is a gate people route
+around, and the browser-heavy stages are most of the wall clock.
+
+## Branch protection — use classic protection, not rulesets
+
+**Settings → Branches → Add branch protection rule**, not **Settings → Rules →
+Rulesets.**
+
+They look interchangeable and are not. Since mid-2026, a required status check
+configured through a **ruleset** does not reliably clear a pull request's
+auto-merge: the checks go green, the PR stays queued, and there is nothing in
+the UI that says why. Classic branch protection does not have the problem. If
+you have already created a ruleset, delete it — a repository with both is worse
+than either, because the effective policy is the union and neither page shows it.
+
+Configure on `main`:
+
+- ✅ **Require a pull request before merging**
+- ✅ **Require status checks to pass before merging**, and require the branch to
+  be up to date. Required checks, by their **job names**:
+  - `typecheck · lint · unit` and `RLS · e2e · JSON-LD` (from `ci.yml`)
+  - `full release gate` (from `release-gate.yml`)
+- ✅ **Require conversation resolution before merging**
+- ✅ **Do not allow bypassing the above settings** — including for
+  administrators. An exception that exists is an exception that gets used at
+  22:00 on a Thursday.
+- ❌ **Do not** allow force pushes or deletions on `main`.
+
+A check only becomes selectable after it has run once, so open a throwaway PR
+first, let both workflows complete, then add them as required.
+
+## Auto-merge, and the 422 retry
+
+`gh pr merge --auto` intermittently returns **HTTP 422** when auto-merge is
+requested in the same moment the required checks are still registering. It is a
+race, not a rejection: the same call succeeds seconds later.
+
+```bash
+# Enable auto-merge, retrying the 422 race.
+for attempt in 1 2 3 4 5; do
+  if gh pr merge --auto --squash "$PR"; then
+    echo "auto-merge enabled"; break
+  fi
+  echo "attempt $attempt failed (likely the 422 race); retrying in $((attempt * 4))s"
+  sleep $((attempt * 4))
+done
+```
+
+Do not paper over it by disabling required checks to "get the merge through".
+That is the entire protection, and a 422 is a scheduling artefact.
+
+## What may merge, and who merges it
+
+Merging to `main` is **L2** under `EXECUTION_POLICY.md`. It requires:
+
+1. a `quality/scorecard.json` entry with `verdict: "pass"` **on the commit being
+   merged** — a pass on a different commit is not a pass on this one;
+2. every required check green;
+3. no unresolved review threads;
+4. an `AUTONOMY_LOG.md` entry: timestamp, level, action, evidence path.
+
+A skipped gate stage is never a pass. A local run will always show skips —
+no local environment has a browser, a writable Supabase, a seeded reference
+database and Lighthouse at once — which is exactly why CI exists and why the
+verdict is only meaningful when CI produced it.
+
+## Before deploying
+
+Run `/go-no-go`. It checks, and stops at the first failure: the kill switch is
+absent, the gate is green **on this commit**, `supabase/migrations` equals the
+live schema, and the environment is sane — including that `PAYMENT_PROVIDER` is
+what you expect, since switching it to a live provider is **L5**.
+
+Deploying is **L3**, requires L2 first, and needs its own `AUTONOMY_LOG.md`
+entry.
+
+## Enabling the @claude responder
+
+1. Create an API key and add it as the `ANTHROPIC_API_KEY` **secret**.
+2. Add a repository **variable** `CLAUDE_ENABLED` set to `true`.
+3. Comment `@claude …` on a pull request.
+
+The job additionally requires the commenter to be an `OWNER`, `MEMBER` or
+`COLLABORATOR`, so a drive-by comment from a fork cannot task an agent that
+holds `contents: write`. Until step 2 is done the workflow is inert — the guard
+is a condition rather than a commented-out block, because a commented-out
+workflow is invisible to `actionlint` and rots without anyone noticing.

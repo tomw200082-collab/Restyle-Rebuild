@@ -241,3 +241,38 @@ Client construction is always `createClient<Database>(…)`; an untyped client s
 - **RLS enabled with zero policies is a valid, intentional design** for a service-role-only table (`rate_limits`, `legacy_users`, `legacy_orders`): it denies everything to `anon` and `authenticated`. Supabase's advisor reports it as INFO because it is usually an oversight — say so in the migration so nobody "fixes" it by adding a policy.
 - **Run both advisors after every DDL change**, not just the security one. `get_advisors(type: 'performance')` is what surfaced the two rules above, as 31 warnings on the hottest read path.
 - Mutations are Server Actions or route handlers that re-check authorization server-side before touching the database. RLS is the backstop, not the only check. `[D-28]`
+
+## Schema parity is a measurement, not a belief
+
+**The repository mirrors the remote, and that is proved by diffing, not by
+having applied the files.** "The migrations are applied so it matches" is a
+belief, and it produced the 22-vs-23 count mystery that took a manual audit to
+resolve twice.
+
+`db/introspect.sql` emits one line per object across the `public` and `private`
+schemas — tables, columns with type/nullability/default, constraints, indexes,
+enums, function signatures **and body hashes**, policy `USING`/`WITH CHECK`
+expressions, RLS flags, triggers, and the table/column/function grants held by
+`anon`, `authenticated` and `service_role`. Run it both sides, diff, or compare
+per-category MD5s of the sorted lines.
+
+Run 2's R0 measured 920 objects with an identical total digest on both sides.
+`/drift-check` and `drift-weekly.yml` make it a schedule instead of an audit.
+
+**Migration file count is never the measurement.** Files and ledger entries can
+differ legitimately: a correction applied remotely on its own and folded into an
+existing file in the repository is one file, two ledger rows, and zero drift.
+
+## Reference data has two writers
+
+Categories, brands and delivery zones are seeded by migration **and** edited by
+the operator directly. That is two writers to one dataset, and it is how seven
+category and brand slugs came to differ from canonical — with
+`/category/[slug]` and `/brand/[slug]` resolving by slug, each difference was a
+route that 404s and nothing that would notice.
+
+- **Correct in place, matched on the natural key** (the Hebrew name), so the
+  operator's row ids survive. Never delete-and-reinsert reference data.
+- **Every seed is idempotent** and proved so by running it three times.
+- **Demo content is flagged** `is_demo` and is removable in one command.
+  Reference rows are not demo content and are never touched by a purge.

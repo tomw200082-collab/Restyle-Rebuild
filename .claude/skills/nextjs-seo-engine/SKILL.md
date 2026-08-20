@@ -146,3 +146,31 @@ Hence `invalidateFromAction()` and `invalidateFromRoute()` — callers say what 
 - Fonts via `next/font/google` with the `hebrew` subset and `display: 'swap'`.
 - `lang="he" dir="rtl"` on `<html>`.
 - Lighthouse mobile ≥90 for Performance and SEO on `/`, one item page, one category page — recorded in PROGRESS.md.
+
+## The gate asserts what this skill promises
+
+Anything here that can be checked mechanically is a `restyle-release-gate`
+stage, because a rule that is only written down is a rule that drifts.
+
+- **`status-codes`** hits every public route and asserts its status. Expected
+  status is read from each page's own source — a page calling `requireUser`
+  should 307 to login, and that is correct behaviour, not a defect. It also
+  asserts that an unknown slug **actually 404s**: a catch-all rendering a
+  friendly page for anything is the soft-404 class wearing the other face.
+- **`sitemap-coverage`** checks both directions — every indexable route is in
+  the sitemap, and every sitemap URL returns 200. A missing entry is lost
+  traffic; a dead entry is a crawl error. They are different failures.
+- **`sold-200`** proves a sold item still returns 200. `[D-33]`
+- **`lighthouse`** enforces perf ≥ 90, SEO = 100, a11y ≥ 95 on home, category
+  and item.
+
+**Hub thresholds live here, not in the gate.** Brand hubs and category×city
+hubs enter the sitemap only above `MIN_ITEMS_FOR_HUB` active items, and go
+`noindex` below it. `sitemap-data.ts` owns that rule; the gate audits those
+routes for their status code and treats the sitemap as the authority on
+membership. Re-deriving the threshold in the gate would be a second copy of a
+policy — the drift class again.
+
+**Below-threshold pages stay reachable and stay 200.** They are `noindex,
+follow`: the links out of them still carry weight. A thin page is a quality
+problem, not a routing one, and 404ing it would throw away a real URL.
