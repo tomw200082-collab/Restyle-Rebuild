@@ -50,12 +50,13 @@ async function sellerTimeout(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
   const cutoff = new Date(now.getTime() - config.seller_confirm_hours * 3_600_000).toISOString();
 
-  const { data: orders } = await service
+  const { data: orders, error: ordersError } = await service
     .from('orders')
-    .select('id, buyer_id, total_agorot, payment_ref, paid_at, listing_id, created_at')
+    .select('id, buyer_id, seller_id, total_agorot, payment_ref, paid_at, listing_id, created_at')
     .eq('status', 'pending_seller_confirmation')
     .lt('created_at', cutoff)
     .limit(200);
+  if (ordersError) throw ordersError;
 
   const details: string[] = [];
 
@@ -95,7 +96,19 @@ async function sellerTimeout(now: Date): Promise<JobResult> {
       template: 'order_cancelled_refund',
       to: order.buyer_id,
       orderId: order.id,
+      recipientRole: 'buyer',
+      idempotencyKey: `seller_timeout_buyer:${order.id}`,
       data: { reason: 'seller_timeout' },
+    });
+    // The seller loses a sale here. Legacy let that happen in silence, which is
+    // part of why 72% of orders died at this step with no feedback loop back to
+    // the person who could have prevented it. [LI 3]
+    await getNotificationProvider().send({
+      template: 'seller_timeout_cancelled',
+      to: order.seller_id,
+      orderId: order.id,
+      recipientRole: 'seller',
+      idempotencyKey: `seller_timeout_seller:${order.id}`,
     });
 
     details.push(order.id);
@@ -114,13 +127,14 @@ async function sellerReminder(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
   const cutoff = new Date(now.getTime() - config.seller_reminder_hours * 3_600_000).toISOString();
 
-  const { data: orders } = await service
+  const { data: orders, error: ordersError } = await service
     .from('orders')
     .select('id, seller_id, created_at')
     .eq('status', 'pending_seller_confirmation')
     .not('paid_at', 'is', null)
     .lt('created_at', cutoff)
     .limit(200);
+  if (ordersError) throw ordersError;
 
   let processed = 0;
 
@@ -150,13 +164,14 @@ async function abandonedCheckout(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
   const cutoff = new Date(now.getTime() - 30 * 60_000).toISOString();
 
-  const { data: orders } = await service
+  const { data: orders, error: ordersError } = await service
     .from('orders')
     .select('id, listing_id')
     .eq('status', 'pending_seller_confirmation')
     .is('paid_at', null)
     .lt('created_at', cutoff)
     .limit(200);
+  if (ordersError) throw ordersError;
 
   for (const order of orders ?? []) {
     await transitionOrder(order.id, 'cancelled', null, 'checkout_abandoned', {
@@ -171,12 +186,13 @@ async function abandonedCheckout(now: Date): Promise<JobResult> {
 async function offerExpiry(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
 
-  const { data: offers } = await service
+  const { data: offers, error: offersError } = await service
     .from('offers')
     .select('id')
     .in('status', ['pending', 'countered'])
     .lt('expires_at', now.toISOString())
     .limit(500);
+  if (offersError) throw offersError;
 
   if (offers?.length) {
     await service
@@ -187,12 +203,13 @@ async function offerExpiry(now: Date): Promise<JobResult> {
 
   // An accepted offer whose exclusive checkout window lapsed also expires,
   // otherwise it stays checkout-able forever at the agreed price.
-  const { data: stale } = await service
+  const { data: stale, error: staleError } = await service
     .from('offers')
     .select('id')
     .eq('status', 'accepted')
     .lt('checkout_expires_at', now.toISOString())
     .limit(500);
+  if (staleError) throw staleError;
 
   if (stale?.length) {
     await service
@@ -208,12 +225,13 @@ async function offerExpiry(now: Date): Promise<JobResult> {
 async function protectionWindow(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
 
-  const { data: orders } = await service
+  const { data: orders, error: ordersError } = await service
     .from('orders')
     .select('id, seller_id, seller_payout_agorot, listing_id')
     .eq('status', 'delivered')
     .lt('protection_expires_at', now.toISOString())
     .limit(200);
+  if (ordersError) throw ordersError;
 
   for (const order of orders ?? []) {
     await transitionOrder(order.id, 'completed', null, 'protection_window_elapsed', {});
@@ -243,12 +261,13 @@ async function protectionWindow(now: Date): Promise<JobResult> {
 async function listingExpiry(now: Date): Promise<JobResult> {
   const service = createServiceSupabase();
 
-  const { data: listings } = await service
+  const { data: listings, error: listingsError } = await service
     .from('listings')
     .select('id')
     .eq('status', 'active')
     .lt('expires_at', now.toISOString())
     .limit(500);
+  if (listingsError) throw listingsError;
 
   for (const listing of listings ?? []) {
     await service.rpc('transition_listing', {
