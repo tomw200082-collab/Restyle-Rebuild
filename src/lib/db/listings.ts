@@ -56,8 +56,11 @@ export type ListingCard = {
 };
 
 export type CatalogFilters = {
-  category?: string;
-  brand?: string;
+  /** Resolved ids, not slugs: filtering on an embedded resource
+   *  (`categories.slug`) does not restrict the parent rows in PostgREST
+   *  without `!inner`, and filtering by id uses the indexes instead. */
+  categoryId?: string;
+  brandId?: string;
   city?: string;
   condition?: Enums<'listing_condition'>;
   minPrice?: number;
@@ -81,13 +84,18 @@ export async function listCatalog(filters: CatalogFilters = {}) {
     .select(CARD_COLUMNS, { count: 'exact' })
     .in('status', PUBLIC_STATUSES);
 
-  if (filters.category) query = query.eq('categories.slug', filters.category);
-  if (filters.brand) query = query.eq('brands.slug', filters.brand);
+  if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
+  if (filters.brandId) query = query.eq('brand_id', filters.brandId);
   if (filters.city) query = query.eq('pickup_city', filters.city);
   if (filters.condition) query = query.eq('condition', filters.condition);
   if (filters.minPrice !== undefined) query = query.gte('price_agorot', filters.minPrice);
   if (filters.maxPrice !== undefined) query = query.lte('price_agorot', filters.maxPrice);
-  if (filters.q) query = query.ilike('title', `%${filters.q}%`);
+  if (filters.q) {
+    // Escape PostgREST's LIKE wildcards so a literal % in a search term does
+    // not silently widen the query to everything.
+    const term = filters.q.replace(/[%_]/g, (m) => `\\${m}`);
+    query = query.ilike('title', `%${term}%`);
+  }
 
   switch (filters.sort) {
     case 'price_asc':
@@ -159,4 +167,37 @@ export async function listSimilar(listingId: string, categoryId: string, limit =
 
   if (error) throw error;
   return (data ?? []) as unknown as ListingCard[];
+}
+
+export type TaxonomyRow = { id: string; slug: string; name: string };
+
+/** Categories and brands for the filter controls and for slug → id resolution. */
+export async function getTaxonomy() {
+  const supabase = createPublicSupabase({ tags: [tags.categories, tags.brands] });
+
+  const [{ data: categories }, { data: brands }] = await Promise.all([
+    supabase.from('categories').select('id, slug, name_he, intro_he, sort').order('sort'),
+    supabase.from('brands').select('id, slug, name, sort').order('sort'),
+  ]);
+
+  return {
+    categories: (categories ?? []).map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      name: c.name_he,
+      intro: c.intro_he,
+    })),
+    brands: (brands ?? []).map((b) => ({ id: b.id, slug: b.slug, name: b.name })),
+  };
+}
+
+/** Distinct cities that currently have something for sale. */
+export async function getActiveCities(): Promise<string[]> {
+  const supabase = createPublicSupabase({ tags: [tags.listings] });
+  const { data, error } = await supabase
+    .from('listings')
+    .select('pickup_city')
+    .in('status', PUBLIC_STATUSES);
+  if (error) throw error;
+  return [...new Set((data ?? []).map((r) => r.pickup_city))].sort((a, b) => a.localeCompare(b, 'he'));
 }

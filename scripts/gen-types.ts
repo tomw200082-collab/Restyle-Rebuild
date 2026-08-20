@@ -83,6 +83,66 @@ async function main() {
      order by c.relname
   `);
 
+  // Foreign keys become the `Relationships` entries supabase-js uses to
+  // resolve embedded selects like `listings(*, listing_photos(*))`. Without
+  // them every embed type-checks as SelectQueryError.
+  const { rows: fkRows } = await client.query<{
+    conname: string;
+    table_name: string;
+    referenced_relation: string;
+    columns: string[];
+    referenced_columns: string[];
+    is_one_to_one: boolean;
+  }>(`
+    select c.conname,
+           src.relname as table_name,
+           tgt.relname as referenced_relation,
+           (select array_agg(a.attname::text order by k.ord)
+              from unnest(c.conkey) with ordinality k(attnum, ord)
+              join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum)
+             as columns,
+           (select array_agg(a.attname::text order by k.ord)
+              from unnest(c.confkey) with ordinality k(attnum, ord)
+              join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum)
+             as referenced_columns,
+           exists (
+             select 1 from pg_constraint u
+              where u.conrelid = c.conrelid
+                and u.contype in ('p', 'u')
+                and u.conkey @> c.conkey and c.conkey @> u.conkey
+           ) as is_one_to_one
+      from pg_constraint c
+      join pg_class src on src.oid = c.conrelid
+      join pg_class tgt on tgt.oid = c.confrelid
+      join pg_namespace n on n.oid = src.relnamespace
+     where c.contype = 'f' and n.nspname = 'public'
+     order by src.relname, c.conname
+  `);
+
+  const fksByTable = new Map<string, typeof fkRows>();
+  for (const fk of fkRows) {
+    const list = fksByTable.get(fk.table_name) ?? [];
+    list.push(fk);
+    fksByTable.set(fk.table_name, list);
+  }
+
+  const renderRelationships = (table: string) => {
+    const fks = fksByTable.get(table) ?? [];
+    if (fks.length === 0) return '        Relationships: []';
+    const entries = fks
+      .map(
+        (fk) => `          {
+            foreignKeyName: "${fk.conname}"
+            columns: [${fk.columns.map((c) => `"${c}"`).join(', ')}]
+            isOneToOne: ${fk.is_one_to_one}
+            referencedRelation: "${fk.referenced_relation}"
+            referencedColumns: [${fk.referenced_columns.map((c) => `"${c}"`).join(', ')}]
+          }`,
+      )
+      .join(',\n');
+    return `        Relationships: [\n${entries}\n        ]`;
+  };
+
   const { rows: colRows } = await client.query<Column>(`
     select c.table_name, c.column_name, c.is_nullable,
            (c.column_default is not null) as has_default,
@@ -146,7 +206,7 @@ ${renderInsert(cols)}
         Update: {
 ${renderUpdate(cols)}
         }
-        Relationships: []
+${renderRelationships(t)}
       }`;
     })
     .join('\n');
@@ -211,7 +271,8 @@ export type Enums<T extends keyof PublicSchema['Enums']> = PublicSchema['Enums']
   await client.end();
 
   console.log(
-    `wrote ${target}\n  ${tables.length} tables, ${views.length} views, ${enumRows.length} enums`,
+    `wrote ${target}\n  ${tables.length} tables, ${views.length} views, ` +
+      `${enumRows.length} enums, ${fkRows.length} relationships`,
   );
 }
 
