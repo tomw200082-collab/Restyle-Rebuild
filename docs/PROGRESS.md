@@ -243,3 +243,53 @@ The remaining 4 points on best practices were a missing `/favicon.ico`, now adde
 4. **The gallery's `role="tablist"` was ARIA promising a relationship the markup did not have** — no tabpanel, no `aria-controls` — and it destroyed the list semantics of the `ul`/`li` it sat on, so the thumbnails were simultaneously not-tabs and not-a-list. Replaced with a plain list and `aria-current`.
 
 **Also found:** `next build` reuses `.next/cache/fetch-cache`, so a build straight after a data reset prerenders the previous catalogue — pages for listings that no longer exist, with 404ing images — and reports success `[D-52]`.
+
+---
+
+## Phase 6 — Hardening + handoff ✅
+
+Skills read at phase start: all five.
+
+**Built**
+
+- **Rate limiting** `[D-53]` — counted in Postgres, because a per-process counter on serverless functions resets on every cold start and limits almost nothing. Applied to the AI draft call, offers, disputes, listing submission and checkout. Fails open and logs, because a limiter that takes checkout down when the database hiccups has done more damage than the abuse. A daily housekeeping job prunes the window table.
+- **Security headers** `[D-54]` — CSP, HSTS, and the existing nosniff/frame/referrer/permissions set. The CSP is deliberately not nonce-based: a nonce forces every page dynamic and would delete the ISR the SEO strategy depends on, so it locks down everything that does not need one.
+- **Open-redirect guard tightened** — the auth callback normalises backslashes before checking for an off-site target, because browsers read `/\evil.example` as `//evil.example`.
+- **Hebrew 404, error and global-error pages**, and loading skeletons on the three routes that can safely have them `[D-55]`.
+- **Email log** at `/admin/notifications` — the legacy platform accumulated 51 silent delivery failures across three tables and nobody knew. The runbook sends the operator here first.
+- **Optional analytics**, off by default, and deliberately not pre-authorised in the CSP.
+- **Handoff docs** — `README.md`, `docs/RUNBOOK.md` (Hebrew), `docs/DEPLOYMENT.md`, `docs/POST_RUN_HOOKUP.md`, `docs/FINAL_REPORT.md`.
+
+**Gate 6 — all green**
+| Check | Result |
+|---|---|
+| Build / typecheck / lint | ✅ |
+| Vitest | ✅ 77 tests |
+| RLS assertions | ✅ |
+| Playwright | ✅ 68 tests across anon / buyer / seller / admin |
+| `scripts/validate-jsonld.ts` | ✅ |
+| Supabase security advisor | ✅ 0 issues |
+
+**Clean-clone verification** — a fresh `git clone` of this branch, with only `.env.local` supplied:
+
+| Step | Result |
+|---|---|
+| `npm install` | ✅ 504 packages, 0 vulnerabilities |
+| `npm run db:migrate` against an empty database | ✅ 20 migrations applied from zero |
+| `npm run db:seed` | ✅ 30 active listings, 120 photos |
+| `npx tsc --noEmit` / `eslint .` | ✅ clean |
+| `npm test` | ✅ 77 |
+| `npm run build` | ✅ |
+| `npm run db:rlstest` | ✅ |
+| `npm run test:e2e` | ✅ 68 |
+| `npm run seo:validate` | ✅ |
+
+No secret is present in the clone: it contains `.env.example` and nothing else env-shaped.
+
+**Three defects found while testing this phase**
+
+1. **Adding `loading.tsx` turned four routes into soft 404s** `[D-55]`. A route-level loading file opens a Suspense boundary, Next begins streaming, the status commits to 200, and `notFound()` can then only add a meta tag. `/item`, `/category`, `/category/city` and `/brand` all returned 200 for unknown slugs — a page that renders correctly, reports success, and gets indexed as real content. Caught by asserting on status codes rather than on rendered text.
+2. **`upgrade-insecure-requests` broke sign-in and favourites** `[D-54]`. Keyed on `NODE_ENV`, which `next start` sets to production locally too, it rewrote every call to the http local Supabase into https. The e2e suite caught it; a developer running `next start` would have seen the same thing and had no idea why.
+3. **A payout assertion was a latent race.** Once `paid_at` is set the row reads "שולם" in both the badge and the metadata line, so matching the word was a race between two correct renderings. Now asserted on the row's `data-status`.
+
+**Also found:** the seed and the migration runner can target different databases without complaint when the local stack's gateway and `DATABASE_URL` diverge. The seed's own photo-count self-check caught it immediately, which is what that check is for.
