@@ -68,7 +68,11 @@ jobs:
         run: |
           if [ -z "${SUPABASE_DB_URL}" ]; then
             echo "SUPABASE_DB_URL is not set. Add it in Settings → Secrets → Actions."
-            echo "Supabase → Project Settings → Database → Connection string (URI)."
+            echo
+            echo "Take the SESSION POOLER string: Supabase → Connect → Session pooler."
+            echo "Not the direct one — db.<ref>.supabase.co is IPv6-only and these"
+            echo "runners have no IPv6 route. The pooler username carries the project"
+            echo "ref, so it reads postgres.<ref>, not plain postgres."
             exit 1
           fi
 

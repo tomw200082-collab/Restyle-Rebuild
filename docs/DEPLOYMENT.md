@@ -155,7 +155,7 @@ guards `main` and what runs before a deploy.
 
 | name | kind | needed by | value |
 |---|---|---|---|
-| `SUPABASE_DB_URL` | secret | `drift-weekly.yml` | Supabase → Project Settings → Database → **Connection string (URI)**, the direct connection, not the pooler |
+| `SUPABASE_DB_URL` | secret | `drift-weekly.yml` | Supabase → Connect → **Session pooler**, copied verbatim. See the note below — the direct string cannot work here |
 | `ANTHROPIC_API_KEY` | secret | `claude.yml` | only if you enable the @claude responder |
 | `CLAUDE_ENABLED` | variable | `claude.yml` | set to `true` to enable it; anything else leaves it off |
 
@@ -168,6 +168,28 @@ would do all of that for real `[D-65]`.
 `drift-weekly.yml` **fails loudly if `SUPABASE_DB_URL` is missing** rather than
 skipping. A drift check that quietly does nothing every Monday is worse than no
 drift check, because it looks like one.
+
+### It must be the session pooler, not the direct connection `[D-92]`
+
+This table said "the direct connection, not the pooler" for all of Run 2, and it
+was wrong in a way nothing catches until the job runs: **`db.<ref>.supabase.co`
+resolves to IPv6 only, and GitHub-hosted runners have no IPv6 route.** The
+symptom is a bare `Network is unreachable` naming an address nobody recognises
+as IPv6.
+
+Copy the pooler string from the dashboard rather than assembling it — the host
+prefix varies by pooler generation. Two things identify a correct one:
+
+- the username carries the project ref — `postgres.<ref>`, not plain `postgres`
+- the host ends `.pooler.supabase.com`, on port 5432 for the *session* pooler
+  (6543 is the transaction pooler, which does not support the session-level
+  features this check uses)
+
+For this project the region is `eu-central-1`, so the host names it.
+
+A password containing `%`, `@`, `/` or `#` must be percent-encoded in the URI —
+though `[D-89]` means a bare `%` now degrades gracefully instead of ending up in
+a log.
 
 ## The four workflows
 

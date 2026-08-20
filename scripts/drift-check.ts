@@ -86,7 +86,7 @@ function pgEnv(connectionString: string): NodeJS.ProcessEnv {
   if (!/^postgres(ql)?:\/\//.test(connectionString)) {
     throw new Error(
       'SUPABASE_DB_URL must be a connection URI beginning with postgresql:// — ' +
-        'Supabase → Project Settings → Database → Connection string → URI. ' +
+        'Supabase → Connect → Session pooler (the direct host is IPv6-only). ' +
         `Got ${connectionString.length} characters starting "${connectionString.slice(0, 12)}…".`,
     );
   }
@@ -208,7 +208,8 @@ async function main() {
   }
   if (!remote) {
     console.error('SUPABASE_DB_URL is required — the remote to compare against.');
-    console.error('Supabase → Project Settings → Database → Connection string (URI).');
+    console.error('Supabase → Connect → Session pooler. The direct host is IPv6-only,');
+    console.error('which no GitHub runner can reach, so CI needs the pooler string.');
     process.exit(1);
   }
 
