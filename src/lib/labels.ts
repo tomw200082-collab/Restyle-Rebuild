@@ -18,6 +18,7 @@ export const LISTING_STATUS_LABELS: Record<Enums<'listing_status'>, string> = {
   sold: 'נמכר',
   rejected: 'נדחה',
   expired: 'פג תוקף',
+  paused: 'מושהה',
   removed: 'הוסר',
 };
 

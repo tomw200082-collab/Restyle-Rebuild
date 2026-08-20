@@ -1,0 +1,10 @@
+BASE / 7a63b80c4bbc71d7
+BASE /accessibility 65c74d21b6edfa83
+BASE /buyer-protection ad260d517901e919
+BASE /cancellation-policy be6918967401598e
+BASE /catalog f9dd61cd406087d1
+BASE /how-it-works 3f31d5679ddd0c65
+BASE /privacy 083eae3dc7d762e3
+BASE /sell 0a0ce74c5849f589
+BASE /sell/new/submitted 059160686106f51e
+BASE /terms 73da83e306f30463

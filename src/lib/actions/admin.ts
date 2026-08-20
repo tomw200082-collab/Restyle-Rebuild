@@ -32,6 +32,45 @@ async function requireAdminUser() {
 // Curation
 // ---------------------------------------------------------------------------
 
+/**
+ * Put a paused seller back in the catalogue.
+ *
+ * The automation pauses a seller after `seller_pause_after_expired` consecutive
+ * expired confirmations. This is the human override, and it is the reason the
+ * automation is safe to run at all: an operator who has spoken to the seller can
+ * undo it in one click.
+ *
+ * The counter resets with it. Unpausing means "this seller is trusted again",
+ * and leaving the count at the threshold would re-pause them on the very next
+ * expiry — which is not what pressing the button means. [D-74]
+ */
+export async function unpauseSeller(sellerId: string): Promise<AdminResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return { ok: false, error: 'אין הרשאה' };
+  if (!z.string().uuid().safeParse(sellerId).success) {
+    return { ok: false, error: 'מזהה מוכר לא תקין' };
+  }
+
+  const service = createServiceSupabase();
+  const { data: restored, error } = await service.rpc('unpause_seller_listings', {
+    p_seller_id: sellerId,
+    p_actor: admin.id,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  if (typeof restored === 'number' && restored > 0) {
+    await getNotificationProvider().send({
+      template: 'seller_listings_unpaused',
+      to: sellerId,
+      recipientRole: 'seller',
+      idempotencyKey: `seller_unpaused:${sellerId}:${restored}`,
+    });
+  }
+
+  invalidateFromAction('listing_updated', {});
+  return { ok: true };
+}
+
 const reviewSchema = z.object({
   listingId: z.string().uuid(),
   decision: z.enum(['approve', 'reject']),

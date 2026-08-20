@@ -26,7 +26,7 @@ export default async function NewCheckoutPage({
     .from('listings')
     .select(
       `id, slug, title, price_agorot, status, pickup_city, pickup_floor,
-       pickup_has_elevator, needs_disassembly, allow_self_pickup,
+       pickup_has_elevator, needs_disassembly, allow_self_pickup, size_class,
        commission_pct_override, seller_id,
        listing_photos ( storage_path, alt_text, sort )`,
     )

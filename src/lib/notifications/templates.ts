@@ -11,6 +11,8 @@ export type TemplateName =
   | 'buyer_delivered'
   | 'order_cancelled_refund'
   | 'seller_timeout_cancelled'
+  | 'seller_listings_paused'
+  | 'seller_listings_unpaused'
   | 'payout_paid'
   | 'offer_received'
   | 'offer_accepted'
@@ -99,6 +101,19 @@ const TEMPLATES: Record<TemplateName, { subject: string; body: string }> = {
     body:
       'לא קיבלנו ממך תגובה בזמן, ולכן ההזמנה על "{item}" בוטלה והכסף הוחזר לקונה.\n\n' +
       'הפריט לא נמחק — הוא חזר להיות פעיל ואפשר לקבל עליו הזמנות חדשות.\n\n{url}',
+  },
+  seller_listings_paused: {
+    subject: 'השהינו את הפריטים שלך — שנחזיר אותם?',
+    body:
+      'לא קיבלנו ממך תגובה על {count} הזמנות ברצף, ולכן השהינו זמנית את הפריטים ' +
+      'הפעילים שלך כדי שקונים לא ימתינו לשווא.\n\n' +
+      'שום דבר לא נמחק. ברגע שתאשר לנו שאתה זמין, נחזיר הכל לאוויר.\n\n{url}',
+  },
+  seller_listings_unpaused: {
+    subject: 'הפריטים שלך חזרו לאוויר',
+    body:
+      'הפריטים שלך פעילים שוב ומופיעים בקטלוג.\n\n' +
+      'תודה — תגובה מהירה לבקשות רכישה היא מה שגורם למכירה להיסגר.\n\n{url}',
   },
   payout_paid: {
     subject: 'הכסף מהמכירה בדרך אליך',

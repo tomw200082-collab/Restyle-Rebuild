@@ -32,7 +32,9 @@
     "gate:fast": "tsx scripts/release-gate.ts --fast",
     "route-audit": "tsx scripts/route-audit.ts",
     "drift-check": "tsx scripts/drift-check.ts",
-    "scorecard": "tsx scripts/scorecard-summary.ts"
+    "scorecard": "tsx scripts/scorecard-summary.ts",
+    "demo:seed": "tsx scripts/demo-content.ts",
+    "purge-demo": "tsx scripts/purge-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

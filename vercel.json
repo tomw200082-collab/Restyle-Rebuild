@@ -1,32 +1,17 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": "Security headers are NOT here. They live in next.config.ts, all of them, and this file deliberately adds none — two files setting the same header is the two-writers-one-dataset class, and the first draft of this one shipped Permissions-Policy: camera=(self) next to next.config.ts's camera=(), which is a contradiction nothing would have reported. next.config.ts wins because it is the only one of the two that can compute the CSP and can key HSTS on the site's own scheme. [D-54], [D-76]",
+
+  "regions": ["fra1"],
+
   "crons": [
-    {
-      "path": "/api/cron/seller-timeout",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/seller-reminder",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/abandoned-checkout",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/offer-expiry",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/protection-window",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/cron/listing-expiry",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/housekeeping",
-      "schedule": "30 3 * * *"
-    }
+    { "path": "/api/cron/seller-timeout", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/seller-reminder", "schedule": "0 * * * *" },
+    { "path": "/api/cron/abandoned-checkout", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/offer-expiry", "schedule": "0 * * * *" },
+    { "path": "/api/cron/protection-window", "schedule": "*/30 * * * *" },
+    { "path": "/api/cron/listing-expiry", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/housekeeping", "schedule": "30 3 * * *" }
   ]
 }
