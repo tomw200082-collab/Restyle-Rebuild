@@ -92,16 +92,24 @@ Run through this in order; the first four are the ones that lose money.
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` is not exposed: `grep -r NEXT_PUBLIC_SUPABASE_SERVICE` returns nothing, and it is not in any committed file.
 - [ ] `NEXT_PUBLIC_SITE_URL` is the real origin, and the deploy happened *after*
       it was set.
-- [ ] `ADMIN_EMAIL` signed in once and `/admin` loads for them.
+- [ ] `ADMIN_EMAIL` signed in once and `/admin` loads for them. **As of the
+      post-run reconciliation this has not happened**: the remote project has
+      zero rows in `auth.users` and zero in `profiles`, so no admin exists yet.
+      The address must sign in before anyone else does — the `handle_new_user`
+      trigger grants the role on first sign-in.
 - [ ] Production was **not** seeded (`npm run db:seed` creates fictional
-      listings and three accounts with a known password).
+      listings and three accounts with a known password). Note that the
+      taxonomy and delivery zones do **not** need seeding: `0024` ships all 12
+      categories, 12 brands and 21 zones as part of the migrations, the same way
+      `0013` ships `site_config`. Verified present on the remote.
 - [ ] Supabase security advisor reports zero warnings. Three INFO notices
       are expected and correct: `legacy_users`, `legacy_orders` and
       `rate_limits` have RLS enabled with no policies, which denies everything
       to anon and authenticated — the intended posture for service-role-only
       tables. Do not "fix" them by adding a policy.
-- [ ] Delivery zones and `site_config` reviewed in `/admin/config` — the seeded
-      fees are the pilot's numbers, not necessarily today's.
+- [ ] Delivery zones and `site_config` reviewed in `/admin/config` — the fees
+      that ship are the pilot's numbers, not necessarily today's. Zones are
+      A ₪149 / B ₪199 / C ₪249 across 21 Gush Dan municipalities.
 - [ ] A real end-to-end purchase completed on production with a real card and a
       real refund. Nothing else proves the PSP wiring.
 

@@ -72,7 +72,7 @@ src/
     seo/               slugs, JSON-LD, sitemap sources, legacy route map
     jobs/              the seven cron jobs, all idempotent
 supabase/migrations/   numbered SQL; the schema's only source of truth
-db/                    seed data and the RLS assertion suite
+db/                    seed data, the RLS assertion suite, schema introspection
 docs/                  analysis, decisions, progress, runbook, deployment
 .claude/skills/        the five project skills
 ```
@@ -106,6 +106,8 @@ decided, why, and what was rejected.
 | File | For |
 |---|---|
 | `docs/ANALYSIS.md` | what the legacy system actually was, and the gaps |
+| `docs/RECONCILIATION.md` | repo vs. live Supabase project, measured object by object |
+| `docs/HANDOFF_RUN2.md` | what is still open, current-state accurate |
 | `docs/DECISIONS.md` | every judgement call, with the rejected alternatives |
 | `docs/PROGRESS.md` | phase-by-phase record, including defects found |
 | `docs/RUNBOOK.md` | **Hebrew** — the daily operational guide |
