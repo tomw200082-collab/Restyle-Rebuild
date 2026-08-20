@@ -118,6 +118,10 @@ export const DELIVERY_ZONES: Array<{ city: string; zone: 'A' | 'B' | 'C'; fee_ag
   { city: 'גני תקווה', zone: 'C', fee_agorot: 24900 },
   { city: 'אזור', zone: 'C', fee_agorot: 24900 },
   { city: 'נס ציונה', zone: 'C', fee_agorot: 24900 },
+  // Added by the operator directly on the remote project after the build, and
+  // adopted here so the canonical seed matches the service area actually being
+  // offered. See docs/RECONCILIATION.md §2.
+  { city: 'רחובות', zone: 'C', fee_agorot: 24900 },
 ];
 
 export type UserSeed = {
