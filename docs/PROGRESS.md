@@ -120,3 +120,37 @@ Why this shape: using the **real** PostgREST binary means RLS is genuinely enfor
 **Known gaps carried forward**
 - Buy and offer CTAs link to `/checkout/new` and `/item/[slug]/offer`, both built in Phase 3.
 - `generateStaticParams` for item/category/brand pages comes in Phase 5.
+
+---
+
+## Phase 3 — Transactions ✅
+
+**Done**
+- **PaymentProvider** interface with three implementations: `MockPaymentProvider` (default), a `PayPlusProvider` skeleton as specified, and a `SumitProvider` skeleton for the PSP the business already runs on `[D-38]`. The mock is not a shortcut — it redirects to a real page, which posts a signed callback to the real webhook, whose signature is really verified.
+- **Checkout** — delivery vs self-pickup, live pricing from the shared engine, server-side re-computation that never trusts the client total `[D-19]`, and atomic order creation that reserves the listing in the same statement `[LI 4]`.
+- **Payment webhook** — signature-verified, idempotent (a repeat capture is a no-op), and it refuses a capture whose amount disagrees with the order rather than guessing.
+- **Offers** — submit, accept, decline, one counter round, buyer-accepts-counter, 72h expiry, 24h exclusive checkout. The listing stays purchasable at full price throughout `[D-15]`.
+- **Order lifecycle** — seller confirmation with proposed pickup windows, buyer cancellation with the published ₪50 post-confirmation fee `[D-40]`, refunds through the provider interface.
+- **Scheduling rules** carried over from the legacy platform: shifts, no Saturdays, Friday mornings only, tomorrow-earliest, ≤90 days `[D-32]` — 14 unit tests.
+- **Six cron jobs**, all deriving timing from stored timestamps and all idempotent: seller-timeout, seller-reminder, abandoned-checkout, offer-expiry, protection-window, listing-expiry. Guarded by a constant-time `CRON_SECRET` check. `vercel.json` carries the schedules.
+- **NotificationProvider** — mock (default) and Resend, with Hebrew templates reusing legacy subject lines verbatim and rewriting the bodies the new flow makes false (the old "לא חויבת ולא נגבה ממך כסף" cannot be sent by a platform that charges at checkout).
+- **Buyer and seller dashboards** — orders, offers, favourites, listings, sales, payouts, plus per-order pages with the `order_events` timeline.
+
+**Gate 3 — all green**
+| Check | Result |
+|---|---|
+| Build / typecheck / lint | ✅ |
+| Vitest | ✅ 54 tests (slug, pricing, scheduling) |
+| RLS assertions | ✅ |
+| Playwright | ✅ 30 tests across anon / buyer / seller |
+
+**Two defects found while testing this phase**
+
+1. **Every embedded `orders → listings` select silently returned nothing.** `orders.listing_id → listings.id` and `listings.resale_source_order_id → orders.id` both exist, so PostgREST refused to guess which relationship to use. It surfaces as an empty result rather than a thrown error when you only destructure `data`, which looks exactly like RLS hiding the row — the mock payment page 404'd and the cause looked like an auth problem for several rounds. Fixed by naming the FK (`listings!orders_listing_id_fkey`), and the skill now says to always destructure `error` on an embedded select.
+2. **An offer test depended on "the first card" on a shared dashboard.** It passed alone and failed in the full parallel run. Now targeted by the fixture listing's unique title.
+
+**Also improved:** `createServerSupabase()` is now `cache()`d, so a request builds one client and parses the cookie jar once instead of doing it per helper.
+
+**Known gaps carried forward**
+- Admin scheduling, delivery manifest, payouts ledger UI, disputes console → Phase 4.
+- `picked_up` / `delivered` transitions are admin actions, built in Phase 4; the protection-window job that consumes `delivered` already exists and is tested at the unit level.

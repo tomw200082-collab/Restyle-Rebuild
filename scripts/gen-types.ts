@@ -223,6 +223,59 @@ ${renderRow(cols)}
     })
     .join('\n');
 
+  // RPC signatures, so supabase.rpc(...) is typed rather than `any`.
+  const { rows: fnRows } = await client.query<{
+    name: string;
+    args: string[];
+    arg_types: string[];
+    return_type: string;
+  }>(`
+    select p.proname as name,
+           coalesce(p.proargnames, '{}')::text[] as args,
+           (select array_agg(format_type(t, null) order by ord)
+              from unnest(p.proargtypes) with ordinality u(t, ord)) as arg_types,
+           format_type(p.prorettype, null) as return_type
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.prokind = 'f'
+       and p.proname in ('transition_order', 'transition_listing', 'create_order',
+                         'record_order_event', 'release_listing_for_order',
+                         'mark_listing_sold_for_order')
+     order by p.proname
+  `);
+
+  const pgTypeToTs = (t: string): string => {
+    if (t.endsWith('[]')) return `${pgTypeToTs(t.slice(0, -2))}[]`;
+    if (t === 'uuid' || t === 'text' || t.startsWith('character') || t.startsWith('timestamp')) return 'string';
+    if (t === 'jsonb' || t === 'json') return 'Json';
+    if (t === 'boolean') return 'boolean';
+    if (t === 'integer' || t === 'bigint' || t === 'smallint' || t.startsWith('numeric') || t.startsWith('double')) return 'number';
+    if (enumNames.has(t)) return `Database["public"]["Enums"]["${t}"]`;
+    return 'unknown';
+  };
+
+  const functionBlocks = fnRows
+    .map((fn) => {
+      const argEntries = (fn.args ?? []).map((argName, i) => {
+        const pgType = fn.arg_types?.[i] ?? 'text';
+        return `          ${quoteKey(argName)}?: ${pgTypeToTs(pgType)} | null`;
+      });
+      const returns =
+        tables.includes(fn.return_type)
+          ? `Database["public"]["Tables"]["${fn.return_type}"]["Row"]`
+          : fn.return_type === 'void'
+            ? 'undefined'
+            : pgTypeToTs(fn.return_type);
+      return `      ${quoteKey(fn.name)}: {
+        Args: {
+${argEntries.join('\n') || '          [_ in never]: never'}
+        }
+        Returns: ${returns}
+      }`;
+    })
+    .join('\n');
+
   const enumBlocks = enumRows
     .map((e) => `      ${quoteKey(e.name)}: ${e.values.map((v) => `"${v}"`).join(' | ')}`)
     .join('\n');
@@ -241,7 +294,7 @@ ${tableBlocks}
 ${viewBlocks || '      [_ in never]: never'}
     }
     Functions: {
-      [_ in never]: never
+${functionBlocks || '      [_ in never]: never'}
     }
     Enums: {
 ${enumBlocks || '      [_ in never]: never'}
@@ -272,7 +325,7 @@ export type Enums<T extends keyof PublicSchema['Enums']> = PublicSchema['Enums']
 
   console.log(
     `wrote ${target}\n  ${tables.length} tables, ${views.length} views, ` +
-      `${enumRows.length} enums, ${fkRows.length} relationships`,
+      `${enumRows.length} enums, ${fkRows.length} relationships, ${fnRows.length} functions`,
   );
 }
 

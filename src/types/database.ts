@@ -981,7 +981,70 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      create_order: {
+        Args: {
+          p_listing_id?: string | null
+          p_buyer_id?: string | null
+          p_item_agorot?: number | null
+          p_delivery_agorot?: number | null
+          p_surcharges?: Json | null
+          p_surcharges_agorot?: number | null
+          p_total_agorot?: number | null
+          p_commission_agorot?: number | null
+          p_seller_payout_agorot?: number | null
+          p_delivery_method?: string | null
+          p_payment_provider?: string | null
+          p_offer_id?: string | null
+          p_dropoff_city?: string | null
+          p_dropoff_street?: string | null
+          p_dropoff_floor?: number | null
+          p_dropoff_has_elevator?: boolean | null
+          p_dropoff_notes?: string | null
+        }
+        Returns: Database["public"]["Tables"]["orders"]["Row"]
+      }
+      mark_listing_sold_for_order: {
+        Args: {
+          p_order_id?: string | null
+          p_actor?: string | null
+        }
+        Returns: undefined
+      }
+      record_order_event: {
+        Args: {
+          p_order_id?: string | null
+          p_actor?: string | null
+          p_type?: string | null
+          p_payload?: Json | null
+        }
+        Returns: undefined
+      }
+      release_listing_for_order: {
+        Args: {
+          p_order_id?: string | null
+          p_actor?: string | null
+        }
+        Returns: undefined
+      }
+      transition_listing: {
+        Args: {
+          p_listing_id?: string | null
+          p_to?: Database["public"]["Enums"]["listing_status"] | null
+          p_actor?: string | null
+          p_reason?: string | null
+        }
+        Returns: Database["public"]["Tables"]["listings"]["Row"]
+      }
+      transition_order: {
+        Args: {
+          p_order_id?: string | null
+          p_to?: Database["public"]["Enums"]["order_status"] | null
+          p_actor?: string | null
+          p_event_type?: string | null
+          p_payload?: Json | null
+        }
+        Returns: Database["public"]["Tables"]["orders"]["Row"]
+      }
     }
     Enums: {
       delivery_shift: "morning" | "afternoon" | "evening"
