@@ -63,7 +63,7 @@ export const formatPrice = (agorot: number) =>
   new Intl.NumberFormat(HE, {
     style: 'currency', currency: 'ILS',
     minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(agorot / 100);                    // → ‏₪1,100
+  }).format(agorot / 100);                    // → "\u200f1,100\u00a0\u200f₪" — see below
 
 export const formatNumber = (n: number) => new Intl.NumberFormat(HE).format(n);
 
@@ -82,6 +82,7 @@ export const formatTime = (d: Date | string) =>
 
 Rules that follow:
 
+- **The shekel sign trails the number in `he-IL`, and the output is not the string you'd write by hand.** ICU emits `\u200f1,100\u00a0\u200f₪` — RLM, digits, non-breaking space, RLM, `₪`. It renders as `1,100 ₪`. Consequences: never assert on or search for a hand-typed `"₪1,100"`, in tests or in code — it will never match. Playwright locators filtering on money must key off a stable attribute (`data-order-id`, `data-testid`) instead, and any Hebrew copy containing a literal `₪` (a Zod message, a static label) is a different string from a formatted one even at the same value.
 - **Prices never show agorot.** Israeli furniture prices are whole shekels; `₪1,100.00` reads as a foreign import. `minimumFractionDigits: 0`.
 - **Money is stored in agorot and divided only at the formatting boundary.** Never let a shekel float exist in application code.
 - **Israeli dates are day-first.** `20.08.2026`, never `08/20/2026`, and never ISO in user-facing text.

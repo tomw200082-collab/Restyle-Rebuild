@@ -154,3 +154,42 @@ Why this shape: using the **real** PostgREST binary means RLS is genuinely enfor
 **Known gaps carried forward**
 - Admin scheduling, delivery manifest, payouts ledger UI, disputes console → Phase 4.
 - `picked_up` / `delivered` transitions are admin actions, built in Phase 4; the protection-window job that consumes `delivered` already exists and is tested at the unit level.
+
+---
+
+## Phase 4 — Ops cockpit + notifications ✅
+
+Skills read at phase start: `marketplace-db`, `restyle-design-system`, `hebrew-rtl-ui`, `restyle-e2e`.
+
+The admin surfaces are where the AptDeco model stops being a diagram and becomes a job someone does on a Tuesday morning. Every screen here exists because a real operational step needs it, and the density is deliberately higher than the storefront's — same tokens, more rows per screen `[design-system §Layout]`.
+
+**Built**
+
+- **Role-gated admin layout** — `requireAdmin()` at the layout, RLS as the backstop `[D-28]`, plus its own nav. Not reachable by URL guessing.
+- **KPI dashboard** — GMV, take rate, order counts by status, and two KPIs promoted to first-class because the legacy audit says they decide the business: **seller-confirmation rate / time-to-confirm** `[D-43]` (72% of legacy orders died here) and **delivery margin** `[D-37]` (charged zone fee vs. actual crew cost).
+- **Review queue** — the full submitted listing, seller contact, photos, and one-click approve / reject-with-reason. Approving publishes and notifies; rejecting notifies with the reason.
+- **Orders kanban** — every live order by status, oldest first, because the oldest is the one about to breach a window.
+- **Order detail** — the operational spine: schedule pickup and dropoff (shift-aware, honouring the Friday/Saturday rules `[D-32]`), record pickup, record delivery, fail an inspection, cancel, refund. Every action writes to `order_events`.
+- **Deliveries day view** — one date, both legs, with a copyable plain-text **crew manifest**. WhatsApp integration is out of scope, so the deliverable is text a human pastes — which is what the ops flow actually needs today. Each stop names its crew, because the day spans every crew working it.
+- **Payouts ledger** — pending total, per-seller rows, mark-paid with a transfer note. Payouts are created by the protection-window job, not by hand.
+- **Disputes console** — full refund, partial refund, or reject with a written resolution; the buyer-side dispute form feeds it.
+- **Config and zone editors** — commission, windows, fees, floor surcharges and delivery zones are all rows, not constants `[D-40]`.
+- **Notifications wired to every transition** — sixteen Hebrew templates, each fired from the action or job that owns the state change, each idempotent by key.
+
+**Gate 4 — all green**
+| Check | Result |
+|---|---|
+| Build / typecheck / lint | ✅ |
+| Vitest | ✅ 54 tests |
+| RLS assertions | ✅ |
+| Playwright | ✅ 32 tests across anon / buyer / seller / admin |
+| Full lifecycle e2e | ✅ approve → buy → confirm → schedule → picked_up → delivered → completed → payout pending → paid, all nine transitions asserted in `order_events` |
+
+**Four defects found while testing this phase**
+
+1. **The review queue rendered empty against a database that plainly had rows.** Migrations 0017/0018 added the `profiles` foreign keys, but **PostgREST caches the schema at start-up** and only refreshes on `notify pgrst, 'reload schema'`. Until it does, an embed naming a new FK hint returns `PGRST200`, which — with the error dropped — is indistinguishable from an empty table. `scripts/db-migrate.ts` now issues the notify on every run, including no-ops. Supabase-hosted projects reload on DDL automatically, which is exactly why this only bites locally, i.e. in the tests.
+2. **Thirty-one queries were discarding their `error`.** Same root cause as the defect above and as one in Phase 3, so it was fixed as a class rather than a case: every read now throws `[D-47]`. The dangerous instances were in the cron jobs, where a failed query means the job reports success having processed nothing — how the legacy reservation cleaner died quietly for months.
+3. **A seller whose sale was auto-cancelled was told nothing.** The `seller_timeout_cancelled` template existed and had no call site; only the buyer heard. Given that seller non-response is the business's central failure mode, this was the one notification most worth having. Now sent, keyed idempotently per side.
+4. **Two tests encoded assumptions the product doesn't hold** `[D-48]`: a locator filtering on `"₪800"` (ICU emits `‏800 ‏₪` — trailing symbol, nbsp, two RLM marks, so it could never match) and a hardcoded `'evening'` shift that is unavailable on Fridays. Both now key off stable attributes and live options.
+
+**Also improved:** `send()` on the notification provider is now a non-throwing boundary — a broken email cannot make a completed payout report as failed `[D-47]`.
