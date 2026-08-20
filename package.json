@@ -30,7 +30,9 @@
     "release-gate": "tsx scripts/release-gate.ts",
     "gate": "npm run release-gate",
     "gate:fast": "tsx scripts/release-gate.ts --fast",
-    "route-audit": "tsx scripts/route-audit.ts"
+    "route-audit": "tsx scripts/route-audit.ts",
+    "drift-check": "tsx scripts/drift-check.ts",
+    "scorecard": "tsx scripts/scorecard-summary.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

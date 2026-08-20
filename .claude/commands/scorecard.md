@@ -3,7 +3,12 @@ description: Compare the latest scorecard entry against the previous one
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
-Read `quality/scorecard.json` and compare the last two entries.
+```bash
+npm run scorecard
+```
+
+It renders the latest entry and diffs it against the previous one. Read its
+output, then add what a renderer cannot know.
 
 Report:
 

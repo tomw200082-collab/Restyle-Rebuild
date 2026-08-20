@@ -1,0 +1,136 @@
+name: ci
+
+# Every pull request and every push to main. This is the fast lane: it must be
+# quick enough that nobody is tempted to skip it, so the browser-heavy checks
+# (Lighthouse, contrast, axe, visual diff) live in release-gate.yml instead.
+#
+# It does run the things the local release gate cannot: the RLS suite and the
+# end-to-end suite, both of which need a writable Supabase stack. That is not a
+# nicety — those two stages are `skipped` in every local scorecard, and a skip
+# is never a pass, so this workflow is what makes an L2 verdict possible at all.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # A local stack only. The e2e suite signs up users and drives orders to payout
+  # and refund; pointed at the real project it would do all of that for real.
+  NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+  PAYMENT_PROVIDER: mock
+  EMAIL_PROVIDER: mock
+  AI_LISTING_ENABLED: 'false'
+  ADMIN_EMAIL: admin@restyle.test
+  CRON_SECRET: ci-only-not-a-real-secret-0000000000000000000000000000
+
+jobs:
+  static:
+    name: typecheck · lint · unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Hebrew copy lint and the other static gate stages
+        run: npm run release-gate -- --fast --no-append
+
+  database:
+    name: RLS · e2e · JSON-LD
+    runs-on: ubuntu-latest
+    # Playwright, three browsers' worth of dependencies and a Supabase stack.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start a local Supabase stack
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: supabase start
+        run: supabase start
+
+      - name: Export the local stack's credentials
+        # `supabase status -o env` prints the keys the stack generated. They are
+        # local-only and regenerated per run, so they are not secrets — but they
+        # are still masked, because a log that prints key-shaped strings teaches
+        # people to ignore key-shaped strings in logs.
+        run: |
+          supabase status -o env | while IFS='=' read -r key value; do
+            value="${value%\"}"; value="${value#\"}"
+            case "$key" in
+              API_URL)      echo "NEXT_PUBLIC_SUPABASE_URL=$value" >> "$GITHUB_ENV" ;;
+              ANON_KEY)     echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
+              SERVICE_ROLE_KEY)
+                            echo "::add-mask::$value"
+                            echo "SUPABASE_SERVICE_ROLE_KEY=$value" >> "$GITHUB_ENV" ;;
+              DB_URL)       echo "DATABASE_URL=$value" >> "$GITHUB_ENV" ;;
+            esac
+          done
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Seed
+        # The RLS suite asserts every policy in both directions, which needs rows
+        # in every status to assert against. Without this it reports
+        # `rls-fixture-absent` — honest, and useless as a gate.
+        run: npm run db:seed
+
+      - name: RLS assertions
+        run: npm run db:rlstest
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: End-to-end, four actor roles
+        run: npm run test:e2e
+
+      - name: JSON-LD structured data
+        run: |
+          npx next start --port 3000 &
+          npx wait-on http://127.0.0.1:3000 --timeout 120000
+          npm run seo:validate
+
+      - name: Upload failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
