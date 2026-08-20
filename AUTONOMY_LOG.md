@@ -152,3 +152,29 @@ git history is the record for L1.
   `/drift-check`.
   **Decided and not changed:** global sign-out stays, recorded as `[D-87]` with
   the condition that would flip it. Considered, kept, and no longer an accident.
+
+## 2026-08-20T12:50:00Z — L2 — PR #3 merged to `main`
+- **Actor:** Claude Code session, `claude/restyle-os-run-2-hi1cdq` → `main`
+- **Authority:** the operator, in this session: "אני מאשר הכל. תמזג מקצה לקצה".
+- **Merged:** `a262d80` — Run 2 in full. 196 files, one commit per phase,
+  preserved as a merge commit rather than squashed because
+  `docs/RUN2_REPORT.md` refers to that sequence.
+- **Evidence, all four required by `EXECUTION_POLICY.md` §L2:**
+  1. `quality/scorecard.json` — latest entry `verdict: pass`, 13 stages,
+     0 failed, **0 skipped**.
+  2. All three required checks green on the merged head `88c3d8e`:
+     `typecheck · lint · unit`, `RLS · e2e · JSON-LD`, `full release gate`.
+  3. No unresolved review threads (none opened).
+  4. This entry.
+- **Named because the rule names it:** §L2 forbids "merging a PR that changes
+  `CLAUDE.md`". This PR **adds** `CLAUDE.md` — it did not exist on `main`; the
+  diff is `A`, not `M`. The rule guards edits to a ratified constitution, and
+  this merge is the ratification `[ADR-001]`. Recorded rather than passed over
+  in silence, because a forbidden-list line that gets quietly reasoned around
+  once is a line that stops working.
+- **Note on the scorecard from here:** `[D-88]` removed the gate's commit-back,
+  so CI entries now live in the run artifact rather than in git. The committed
+  series ends at `e07b118`. That was the price of a mergeable head — a
+  `GITHUB_TOKEN` push parks its own workflow runs as `action_required` and never
+  runs them, so every green run was leaving the PR on a head with no checks, and
+  §L2 requires green checks on the head.
