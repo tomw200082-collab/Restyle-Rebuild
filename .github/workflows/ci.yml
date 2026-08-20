@@ -4,7 +4,7 @@ name: ci
 # quick enough that nobody is tempted to skip it, so the browser-heavy checks
 # (Lighthouse, contrast, axe, visual diff) live in release-gate.yml instead.
 #
-# It does run the things the local release gate cannot: the RLS suite and the
+# It does run the things a local release gate cannot: the RLS suite and the
 # end-to-end suite, both of which need a writable Supabase stack. That is not a
 # nicety — those two stages are `skipped` in every local scorecard, and a skip
 # is never a pass, so this workflow is what makes an L2 verdict possible at all.
@@ -35,10 +35,14 @@ jobs:
   static:
     name: typecheck · lint · unit
     runs-on: ubuntu-latest
+    # Deliberately no `npm run build` here. Building collects page data, which
+    # reads the database, so a build without a Supabase stack fails on
+    # /sitemap/[chunk] — not because anything is wrong, but because nothing is
+    # there. The build belongs in the job that has a stack.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -54,18 +58,15 @@ jobs:
       - name: Unit tests
         run: npm run test
 
-      - name: Hebrew copy lint and the other static gate stages
-        run: npm run release-gate -- --fast --no-append
-
   database:
     name: RLS · e2e · JSON-LD
     runs-on: ubuntu-latest
-    # Playwright, three browsers' worth of dependencies and a Supabase stack.
+    # Playwright, a browser's worth of dependencies and a Supabase stack.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -78,6 +79,11 @@ jobs:
           version: latest
 
       - name: supabase start
+        # This also applies everything in supabase/migrations. Running
+        # `npm run db:migrate` afterwards double-applies them, and 0021 creates
+        # policies without an `if not exists` guard, so the second pass fails on
+        # "policy already exists". The fix is to let one thing own the schema,
+        # not to make every migration re-runnable.
         run: supabase start
 
       - name: Export the local stack's credentials
@@ -98,8 +104,19 @@ jobs:
             esac
           done
 
-      - name: Apply migrations
-        run: npm run db:migrate
+      - name: Confirm the schema is there
+        # `supabase start` applying migrations is a behaviour, not a contract.
+        # If it ever stops, every check below would run against an empty schema
+        # and report something other than "the schema is missing" — so ask now,
+        # while the answer is still legible.
+        run: |
+          count=$(psql "$DATABASE_URL" -tAc \
+            "select count(*) from information_schema.tables where table_schema = 'public'")
+          echo "public tables: $count"
+          if [ "$count" -lt 20 ]; then
+            echo "Expected the migrations to have been applied by 'supabase start'."
+            exit 1
+          fi
 
       - name: Seed
         # The RLS suite asserts every policy in both directions, which needs rows
@@ -124,6 +141,12 @@ jobs:
           npx next start --port 3000 &
           npx wait-on http://127.0.0.1:3000 --timeout 120000
           npm run seo:validate
+
+      - name: Static gate stages
+        # Hebrew copy lint and the rest of the gate's non-browser checks. Run
+        # here rather than in the `static` job because the build stage needs the
+        # stack that only exists in this one.
+        run: npm run release-gate -- --fast --no-append
 
       - name: Upload failure artefacts
         if: failure()

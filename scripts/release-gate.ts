@@ -149,7 +149,12 @@ async function main() {
       // an origin, and only if the build stage passed. Starting it up front
       // would serve the previous build when the current one is broken — the
       // exact "measurement describes a version that no longer exists" trap.
-      const needsOrigin = stage.needsBrowser || ['status-codes', 'sold-200', 'sitemap-coverage'].includes(stage.id);
+      const needsOrigin =
+        stage.needsBrowser ||
+        // The JSON-LD validator fetches pages from a running origin. Without
+        // this it ran under --fast against nothing and reported the resulting
+        // fetch failure as a structured-data defect.
+        ['status-codes', 'sold-200', 'sitemap-coverage', 'jsonld'].includes(stage.id);
       if (needsOrigin && !serverUp && !fast) {
         const build = results.find((r) => r.id === 'build');
         if (build?.status === 'pass' && existsSync(join(ROOT, '.next'))) {

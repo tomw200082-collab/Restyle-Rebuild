@@ -29,6 +29,34 @@ function tail(text: string, lines = 20): string {
   return text.trimEnd().split('\n').slice(-lines).join('\n');
 }
 
+/**
+ * Test runners colourise their summary when they think a terminal is watching,
+ * and GitHub Actions is one of the places they think that. The escape codes land
+ * between the label and the number, so `/Tests\s+(\d+)/` matches locally and
+ * finds nothing in CI.
+ */
+const ANSI = /\u001b\[[0-9;]*m/g;
+
+/**
+ * Parses a count out of a runner's summary, and **throws** when it cannot.
+ *
+ * The version of this that returned `?? 0` reported "0 unit tests passed" as a
+ * green stage in CI — a pass, with a number that should have been impossible.
+ * That is the silent-green class this whole gate exists to catch, produced by
+ * the gate itself. A count that cannot be read is a stage that did not measure
+ * anything, and a stage that did not measure anything has not passed.
+ */
+function requireCount(output: string, pattern: RegExp, what: string): number {
+  const match = pattern.exec(output.replace(ANSI, ''));
+  const count = Number(match?.[1]);
+  if (!Number.isFinite(count) || count <= 0) {
+    throw new Error(
+      `could not read a ${what} count from the runner's output — refusing to report a pass without one`,
+    );
+  }
+  return count;
+}
+
 async function writeEvidence(ctx: GateContext, name: string, body: string): Promise<string> {
   await mkdir(ctx.outDir, { recursive: true });
   const path = join(ctx.outDir, name);
@@ -79,8 +107,8 @@ export const unitStage: Stage = {
     try {
       const { stdout, stderr } = await npmRun('test');
       const out = stdout + stderr;
-      const passed = Number(/Tests\s+(\d+)\s+passed/.exec(out)?.[1] ?? 0);
       const evidence = await writeEvidence(ctx, 'unit.log', out);
+      const passed = requireCount(out, /Tests\s+(\d+)\s+passed/, 'unit test');
       return {
         status: 'pass',
         detail: `${passed} unit tests passed`,
@@ -88,10 +116,15 @@ export const unitStage: Stage = {
         evidence: [evidence],
       };
     } catch (error) {
-      const err = error as { stdout?: string; stderr?: string };
-      const out = `${err.stdout ?? ''}\n${err.stderr ?? ''}`;
+      const err = error as { stdout?: string; stderr?: string; message?: string };
+      const out = `${err.stdout ?? ''}\n${err.stderr ?? ''}`.trim() || (err.message ?? '');
       const evidence = await writeEvidence(ctx, 'unit.log', out);
-      return { status: 'fail', detail: 'unit tests failed', evidence: [evidence], failures: [tail(out, 15)] };
+      return {
+        status: 'fail',
+        detail: err.stdout || err.stderr ? 'unit tests failed' : (err.message ?? 'unit tests failed'),
+        evidence: [evidence],
+        failures: [tail(out, 15)],
+      };
     }
   },
 };
@@ -181,14 +214,19 @@ export const e2eStage: Stage = {
     try {
       const { stdout, stderr } = await npmRun('test:e2e');
       const out = stdout + stderr;
-      const passed = Number(/(\d+)\s+passed/.exec(out)?.[1] ?? 0);
       const evidence = await writeEvidence(ctx, 'e2e.log', out);
+      const passed = requireCount(out, /(\d+)\s+passed/, 'e2e test');
       return { status: 'pass', detail: `${passed} e2e tests passed`, metrics: { tests: passed }, evidence: [evidence] };
     } catch (error) {
-      const err = error as { stdout?: string; stderr?: string };
-      const out = `${err.stdout ?? ''}\n${err.stderr ?? ''}`;
+      const err = error as { stdout?: string; stderr?: string; message?: string };
+      const out = `${err.stdout ?? ''}\n${err.stderr ?? ''}`.trim() || (err.message ?? '');
       const evidence = await writeEvidence(ctx, 'e2e.log', out);
-      return { status: 'fail', detail: 'e2e suite failed', evidence: [evidence], failures: [tail(out, 20)] };
+      return {
+        status: 'fail',
+        detail: err.stdout || err.stderr ? 'e2e suite failed' : (err.message ?? 'e2e suite failed'),
+        evidence: [evidence],
+        failures: [tail(out, 20)],
+      };
     }
   },
 };

@@ -216,3 +216,25 @@ bank transfer.
 
 Adding any of these is a product decision, not an engineering one. See
 `.claude/skills/restyle-yagni/`.
+
+---
+
+## 11. Invariants added by backprop
+
+Each of these was added in the same PR as the fix for a bug that escaped. See
+`.claude/skills/restyle-spec-discipline/`.
+
+- **A canonical is set on the page, never on a layout.** A layout-level
+  `alternates.canonical` is inherited by every page that does not override it.
+  The home page shipped with none for all of Run 1 because it is the only public
+  page with no metadata export of its own. `[D-67]`
+- **A check that cannot read its own result has not passed.** A count parsed out
+  of a runner's output must fail closed when it is absent. The gate's unit stage
+  reported "0 unit tests passed" as green in CI, because vitest colourises its
+  summary and the escape codes defeated the pattern. `[D-71]`
+- **One thing owns the schema.** `supabase start` applies
+  `supabase/migrations/` itself; running the repository's migration runner after
+  it applies them a second time, and the second pass fails on the first
+  migration without an `if not exists` guard. Do not make every migration
+  re-runnable to hide a double-application — remove the second application.
+  `[D-71]`

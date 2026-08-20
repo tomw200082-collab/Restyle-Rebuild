@@ -35,14 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # The scorecard entry is committed back, so the checkout needs a ref
           # it can push to rather than a detached merge commit.
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -70,13 +70,16 @@ jobs:
             esac
           done
 
-      - name: Migrate and seed
+      - name: Seed
+        # `supabase start` already applied the migrations; running db:migrate
+        # after it applies them a second time, and 0021 creates policies with no
+        # `if not exists` guard, so the second pass fails on "policy already
+        # exists". One thing owns the schema.
+        #
         # Seeded data is what turns five `skipped` stages into measured ones:
         # the RLS fixture, an item page for the Product JSON-LD and the
         # Lighthouse item budget, and a sold listing for the sold-200 check.
-        run: |
-          npm run db:migrate
-          npm run db:seed
+        run: npm run db:seed
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
