@@ -42,14 +42,18 @@ export function Gallery({ photos, title }: { photos: Photo[]; title: string }) {
         />
       </div>
 
+      {/* A picture chooser, not a tab set: there is no tabpanel and no
+          aria-controls, so `role="tablist"` was ARIA promising a relationship
+          the markup did not have — and it broke the list semantics of the
+          ul/li it sat on. `aria-current` says the true thing, and a plain list
+          is navigable by every assistive technology without any of it. */}
       {ordered.length > 1 ? (
-        <ul className="grid grid-cols-5 gap-2" role="tablist" aria-label="תמונות הפריט">
+        <ul className="grid grid-cols-5 gap-2" aria-label="תמונות הפריט">
           {ordered.map((photo, index) => (
             <li key={photo.id}>
               <button
                 type="button"
-                role="tab"
-                aria-selected={index === activeIndex}
+                aria-current={index === activeIndex}
                 aria-label={`תמונה ${index + 1}`}
                 onClick={() => setActiveIndex(index)}
                 className={cn(

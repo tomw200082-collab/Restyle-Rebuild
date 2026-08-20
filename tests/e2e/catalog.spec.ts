@@ -56,7 +56,12 @@ test.describe('Gate 2 — item page', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByTestId('item-price')).toBeVisible();
     await expect(page.getByRole('term').filter({ hasText: 'מידות' })).toBeVisible();
-    await expect(page.getByRole('tablist', { name: 'תמונות הפריט' })).toBeVisible();
+    // A list of picture buttons, not a tab set: `role="tablist"` promised a
+    // tabpanel relationship the markup never had, and broke the ul/li
+    // semantics it sat on.
+    const thumbnails = page.getByRole('list', { name: 'תמונות הפריט' });
+    await expect(thumbnails).toBeVisible();
+    await expect(thumbnails.getByRole('button')).not.toHaveCount(0);
   });
 
   test('the seller street address never reaches the item page payload', async ({ page }) => {

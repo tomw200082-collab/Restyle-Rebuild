@@ -13,16 +13,16 @@
   --color-line-strong:   #D6C9B6;
 
   --color-ink:           #22201D;
-  --color-ink-muted:     #6B645C;
-  --color-ink-subtle:    #968E83;
+  --color-ink-muted:     #5A544D;
+  --color-ink-subtle:    #6F6961;
 
-  --color-clay:          #C4633F;
-  --color-clay-hover:    #A94F2E;
+  --color-clay:          #A55335;
+  --color-clay-hover:    #8B462D;
   --color-clay-soft:     #F7E9E2;
 
-  --color-success:       #3D7A5A;
+  --color-success:       #3B7556;
   --color-success-soft:  #E6EFEA;
-  --color-warning:       #B8862B;
+  --color-warning:       #886320;
   --color-warning-soft:  #F7EFDD;
   --color-danger:        #B03A2E;
   --color-danger-soft:   #F6E4E1;

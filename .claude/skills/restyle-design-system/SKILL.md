@@ -23,14 +23,18 @@ Canonical values live in `references/tokens.css` and are mirrored into `tailwind
 | `border` | `#E5DCCF` | default hairlines |
 | `border-strong` | `#D6C9B6` | inputs, focus-adjacent, dividers that must read |
 | `ink` | `#22201D` | primary text, sold badge |
-| `ink-muted` | `#6B645C` | secondary text, labels |
-| `ink-subtle` | `#968E83` | captions, placeholders, disabled |
-| `clay` | `#C4633F` | **the accent** — primary CTA, price, active state |
-| `clay-hover` | `#A94F2E` | accent hover/active |
+| `ink-muted` | `#5A544D` | secondary text, labels |
+| `ink-subtle` | `#6F6961` | captions, placeholders, disabled |
+| `clay` | `#A55335` | **the accent** — primary CTA, price, active state |
+| `clay-hover` | `#8B462D` | accent hover/active |
 | `clay-soft` | `#F7E9E2` | accent-tinted backgrounds, selected chips |
-| `success` | `#3D7A5A` | approved, paid, completed |
-| `warning` | `#B8862B` | pending, expiring |
+| `success` | `#3B7556` | approved, paid, completed |
+| `warning` | `#886320` | pending, expiring |
 | `danger` | `#B03A2E` | rejected, cancelled, destructive |
+
+**Every one of these values clears WCAG AA (4.5:1) against every background it is actually used on** — and several were darkened from their first draft specifically to get there. `clay` fails at `#C4633F`: 3.78 on canvas and 4.04 for white-on-clay, so both the price and the primary CTA were below AA. Same for `warning` (3.03) and `ink-subtle` (3.03). Darkening is a uniform scale toward black, which preserves the hue exactly — the palette reads the same and passes.
+
+**Before changing any colour token, check it in both directions**: the colour as text on `canvas`, `surface`, `sand` and `clay-soft`, and white as text on the colour. A badge tint is ~12% of the status colour over `surface`, so a status colour must also clear AA against its own tint. `npx lighthouse <url> --only-categories=accessibility` is the check that catches this; nothing else will.
 
 **Accent discipline.** Clay appears on: the primary CTA, the price, and the active nav/filter state. That is the whole list. A page with four clay elements has none — the eye stops resolving which one matters. Status colours are not accents; they live on badges only.
 

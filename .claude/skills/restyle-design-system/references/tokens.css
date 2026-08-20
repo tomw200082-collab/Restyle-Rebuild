@@ -10,16 +10,16 @@
   --border-strong: #D6C9B6;
 
   --ink:           #22201D;
-  --ink-muted:     #6B645C;
-  --ink-subtle:    #968E83;
+  --ink-muted:     #5A544D;
+  --ink-subtle:    #6F6961;
 
-  --clay:          #C4633F;
-  --clay-hover:    #A94F2E;
+  --clay:          #A55335;
+  --clay-hover:    #8B462D;
   --clay-soft:     #F7E9E2;
 
-  --success:       #3D7A5A;
+  --success:       #3B7556;
   --success-soft:  #E6EFEA;
-  --warning:       #B8862B;
+  --warning:       #886320;
   --warning-soft:  #F7EFDD;
   --danger:        #B03A2E;
   --danger-soft:   #F6E4E1;
