@@ -29,3 +29,43 @@ git history is the record for L1.
 - **Notes:** Logged as the seed entry although L1 is not normally recorded — the
   first entry has to establish the format, and the artifact it creates is the
   ladder itself. The active level is **L1** from here.
+
+## 2026-08-20T09:42:03Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Edit)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:42:03Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Write)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:42:47Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Edit)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:42:47Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Write)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:44:02Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Edit)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:44:02Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Write)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:44:15Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Edit)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T09:44:15Z — L5 REFUSED — attempt to edit CLAUDE.md
+- **Actor:** agent session (tool: Write)
+- **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
+- **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
