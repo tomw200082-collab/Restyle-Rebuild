@@ -29,7 +29,8 @@
     "import:legacy": "tsx scripts/import-legacy.ts",
     "release-gate": "tsx scripts/release-gate.ts",
     "gate": "npm run release-gate",
-    "gate:fast": "tsx scripts/release-gate.ts --fast"
+    "gate:fast": "tsx scripts/release-gate.ts --fast",
+    "route-audit": "tsx scripts/route-audit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

@@ -166,6 +166,13 @@ Nothing is deleted destructively. `[D-20]`
 - **`/sitemap.xml` must exist as a real URL.** Next's `generateSitemaps`
   relocates output to `/sitemap/<id>.xml` and publishes no index, so the one URL
   `robots.txt` points at must be served explicitly. `[D-49]`
+- **Every indexable page carries exactly one self-referencing canonical, and it
+  is set on the page, never on a layout.** A layout-level canonical is inherited
+  by every page that does not override it, so it silently points them all at one
+  URL. This is named because the home page — the site's highest-authority URL —
+  shipped with no canonical at all for the whole of Run 1: it inherits title and
+  description from the root layout, and nobody noticed that the one piece of
+  metadata which cannot be inherited was therefore missing. `[D-67]`
 - Canonical/noindex matrix and the cat×city threshold rules live in
   `.claude/skills/nextjs-seo-engine/`.
 

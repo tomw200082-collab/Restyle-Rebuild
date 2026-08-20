@@ -14,6 +14,25 @@ test.afterAll(async () => {
 });
 
 test.describe('Gate 5 — indexing policy', () => {
+  /**
+   * Regression test for [D-67]. The home page had no canonical at all: it
+   * inherits title and description from the root layout, and a canonical is the
+   * one piece of metadata that must not be inherited — a layout-level
+   * `alternates.canonical` would make every page that does not override it
+   * claim `/`. So the site's highest-authority URL shipped without one, and no
+   * spec asked, because every spec that asks about canonicals was written about
+   * the pages that have interesting canonical rules.
+   */
+  test('the home page is canonical to itself', async ({ page }) => {
+    await page.goto('/');
+    // Next renders the site origin with no trailing path for a `/` canonical.
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      /^https?:\/\/[^/]+\/?$/,
+    );
+    expect(await page.locator('link[rel="canonical"]').count()).toBe(1);
+  });
+
   test('the unfiltered catalogue is indexable and canonical to itself', async ({ page }) => {
     await page.goto('/catalog');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/catalog$/);
