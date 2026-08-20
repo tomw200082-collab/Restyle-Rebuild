@@ -15,6 +15,9 @@ create table if not exists public.rate_limits (
 
 create index if not exists rate_limits_window_idx on public.rate_limits (window_start);
 
+-- RLS on with no policies: deny-all for anon and authenticated, which is the
+-- intended posture for a table only the service role touches. The advisor
+-- flags this as INFO because it is usually an oversight; here it is deliberate.
 alter table public.rate_limits enable row level security;
 revoke all on public.rate_limits from anon, authenticated;
 grant all on public.rate_limits to service_role;

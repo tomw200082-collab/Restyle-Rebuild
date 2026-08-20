@@ -268,7 +268,7 @@ Skills read at phase start: all five.
 | RLS assertions | ✅ |
 | Playwright | ✅ 68 tests across anon / buyer / seller / admin |
 | `scripts/validate-jsonld.ts` | ✅ |
-| Supabase security advisor | ✅ 0 issues |
+| Supabase security advisor | ✅ 0 warnings (3 INFO, all deliberate deny-all tables) |
 
 **Clean-clone verification** — a fresh `git clone` of this branch, with only `.env.local` supplied:
 
@@ -293,3 +293,13 @@ No secret is present in the clone: it contains `.env.example` and nothing else e
 3. **A payout assertion was a latent race.** Once `paid_at` is set the row reads "שולם" in both the badge and the metadata line, so matching the word was a race between two correct renderings. Now asserted on the row's `data-status`.
 
 **Also found:** the seed and the migration runner can target different databases without complaint when the local stack's gateway and `DATABASE_URL` diverge. The seed's own photo-count self-check caught it immediately, which is what that check is for.
+
+**RLS performance** `[D-56]` — running Supabase's *performance* advisor (not just the security one) surfaced 31 warnings, every one of them on the product's hottest read path: a bare `auth.uid()` in a policy is re-evaluated per row, and a user-facing SELECT policy alongside an admin `for all` policy makes Postgres evaluate both for every row. Migrations 0021 and 0022 fix both, and `db/rls_test.sql` proves the permission set is unchanged.
+
+| Advisor | Before | After |
+|---|---|---|
+| `auth_rls_initplan` | 15 WARN | 0 |
+| `multiple_permissive_policies` | 16 WARN | 0 |
+| security | 0 WARN | 0 WARN (3 INFO, deliberate deny-all tables) |
+
+**Rate limits and the shared test accounts.** The suite runs as three fixture accounts, so the buyer alone completed 47 checkouts against a limit of 30 an hour and the lifecycle test hung waiting for a redirect that a rate-limited action never produced. The limit is right for a real person; the fixture accounts are what is unrealistic, so the Playwright setup truncates `rate_limits` — same reasoning as `db:reset`.

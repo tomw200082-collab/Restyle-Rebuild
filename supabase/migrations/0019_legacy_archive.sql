@@ -35,6 +35,12 @@ create index if not exists legacy_orders_buyer_idx on public.legacy_orders (lowe
 -- These hold real names, addresses and phone numbers of people who used the
 -- pilot. Nothing but the service role may read them; there is no product
 -- surface that shows a legacy record to a visitor.
+--
+-- RLS enabled with **zero policies** is the point, not an oversight: it denies
+-- everything to anon and authenticated, which is exactly the intended posture,
+-- and the grants are revoked besides. Supabase's advisor reports this as an
+-- INFO notice because it is usually a mistake. Here it is the design — do not
+-- "fix" it by adding a policy.
 alter table public.legacy_users  enable row level security;
 alter table public.legacy_orders enable row level security;
 

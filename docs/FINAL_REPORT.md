@@ -127,7 +127,7 @@ All measured against a local production build.
 | Playwright (anon / buyer / seller / admin) | 68 passed |
 | RLS assertions, both directions per policy | passed |
 | JSON-LD validator | passed |
-| Supabase security advisor | 0 issues |
+| Supabase security advisor | 0 warnings; 3 INFO notices, all deliberate |
 
 **Lighthouse (mobile):**
 

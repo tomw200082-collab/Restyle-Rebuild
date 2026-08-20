@@ -95,7 +95,11 @@ Run through this in order; the first four are the ones that lose money.
 - [ ] `ADMIN_EMAIL` signed in once and `/admin` loads for them.
 - [ ] Production was **not** seeded (`npm run db:seed` creates fictional
       listings and three accounts with a known password).
-- [ ] Supabase security advisor reports zero issues.
+- [ ] Supabase security advisor reports zero warnings. Three INFO notices
+      are expected and correct: `legacy_users`, `legacy_orders` and
+      `rate_limits` have RLS enabled with no policies, which denies everything
+      to anon and authenticated — the intended posture for service-role-only
+      tables. Do not "fix" them by adding a policy.
 - [ ] Delivery zones and `site_config` reviewed in `/admin/config` — the seeded
       fees are the pilot's numbers, not necessarily today's.
 - [ ] A real end-to-end purchase completed on production with a real card and a

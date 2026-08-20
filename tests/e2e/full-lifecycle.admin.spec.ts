@@ -19,6 +19,10 @@ import {
  */
 test.describe.configure({ mode: 'serial' });
 
+// One journey across three actors and a dozen page loads. The default 30s is a
+// per-test budget sized for a single interaction, not for this.
+test.setTimeout(90_000);
+
 test.afterAll(async () => {
   await closeDb();
 });

@@ -1,6 +1,22 @@
 import { test as setup, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { USERS } from '../../db/seed-data';
+import { closeDb, sql } from '../fixtures/db';
+
+/**
+ * The whole suite runs as three accounts, so it trips the per-user rate limits
+ * long before a real person would — the buyer alone completes dozens of
+ * checkouts against a limit of thirty an hour, and the failure looks like a
+ * checkout that silently never redirects.
+ *
+ * The limits are right for production; it is the shared fixture accounts that
+ * are unrealistic. Clearing the counters here is the same reasoning as
+ * `db:reset`: test data should not accumulate into the next run.
+ */
+setup('clear rate limits', async () => {
+  await sql('truncate table public.rate_limits');
+  await closeDb();
+});
 
 /**
  * Authenticates once per actor and saves the storage state, so no other spec

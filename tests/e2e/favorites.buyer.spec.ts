@@ -1,9 +1,21 @@
 import { expect, test } from '@playwright/test';
-import { TEL_AVIV_SOFA, seedListing } from '../fixtures/listings';
+import { closeDb, createListing } from '../fixtures/db';
+
+test.afterAll(async () => {
+  await closeDb();
+});
 
 test.describe('Gate 2 — favourites', () => {
+  /**
+   * A listing created for this test alone.
+   *
+   * The shared seed row is read by other specs and written by this one, so in
+   * a parallel run the button's starting state is whatever another worker last
+   * left it as — the test then passes or fails depending on scheduling. Same
+   * lesson as the offer spec in Phase 3: a mutating test owns its fixture.
+   */
   test('a buyer can favourite an item and un-favourite it again', async ({ page }) => {
-    const listing = seedListing(TEL_AVIV_SOFA);
+    const listing = await createListing();
     await page.goto(`/item/${listing.slug}`);
 
     const button = page.getByTestId('favorite-button');
