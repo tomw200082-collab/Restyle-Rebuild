@@ -32,6 +32,7 @@ const DETAIL_COLUMNS = `
   pickup_city, pickup_floor, pickup_has_elevator, needs_disassembly,
   allow_self_pickup, status, published_at, expires_at, view_count,
   seller_id, brand_free_text, commission_pct_override,
+  profiles!listings_seller_profile_fk ( full_name, city ),
   categories ( id, slug, name_he ),
   brands ( slug, name ),
   listing_photos ( id, storage_path, alt_text, sort, width, height )

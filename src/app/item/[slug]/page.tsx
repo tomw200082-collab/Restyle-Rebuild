@@ -12,8 +12,6 @@ import { getListingBySlug, listSimilar } from '@/lib/db/listings';
 import { getDeliveryZones, getSiteConfig } from '@/lib/pricing/config';
 import { formatDimensions, formatPrice, publicName } from '@/lib/format';
 import { CONDITION_LABELS } from '@/lib/labels';
-import { createPublicSupabase } from '@/lib/supabase/public';
-import { tags } from '@/lib/cache/tags';
 
 export const revalidate = 60;
 
@@ -46,12 +44,13 @@ export default async function ItemPage({ params }: Params) {
   const listing = await getListingBySlug(slug);
   if (!listing) notFound();
 
-  const [config, zones, similar, seller] = await Promise.all([
+  const [config, zones, similar] = await Promise.all([
     getSiteConfig(),
     getDeliveryZones(),
     listSimilar(listing.id, listing.categories?.id ?? '', 4),
-    getSellerCard(listing.seller_id),
   ]);
+
+  const seller = listing.profiles;
 
   const isSold = listing.status === 'sold';
   const isReserved = listing.status === 'reserved';
@@ -158,6 +157,8 @@ export default async function ItemPage({ params }: Params) {
               </p>
             ) : null}
 
+            {/* Public identity only: first name plus last initial and the
+                city. Never the phone number, never the street address. [D-06] */}
             <div className="rounded-lg border border-line bg-surface p-4">
               <h2 className="text-caption font-medium text-ink-muted">המוכר</h2>
               <p className="mt-1 text-body text-ink">{publicName(seller?.full_name)}</p>
@@ -195,18 +196,4 @@ function Spec({ label, value }: { label: string; value: React.ReactNode }) {
       <dd className="text-ink">{value}</dd>
     </div>
   );
-}
-
-/**
- * Public seller identity only: first name plus last initial, and the city.
- * Never the phone number, never the street address. [D-06]
- */
-async function getSellerCard(sellerId: string) {
-  const supabase = createPublicSupabase({ tags: [tags.listings] });
-  const { data } = await supabase
-    .from('profiles')
-    .select('full_name, city')
-    .eq('id', sellerId)
-    .maybeSingle();
-  return data;
 }
