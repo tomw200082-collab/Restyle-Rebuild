@@ -123,6 +123,21 @@ function explain(message: string): string {
 }
 
 /**
+ * The useful half of a failed `execFile`.
+ *
+ * Node builds its rejection message as `Command failed: <the entire argv>` and
+ * then the tool's output. For this script the argv is sixty lines of
+ * introspection SQL, so the one line that says what actually went wrong arrives
+ * at the bottom of a wall of `select` — and the reader stops at the top. The
+ * tool's own `stderr` is the part that was ever worth printing. [D-92]
+ */
+function failureText(error: unknown): string {
+  const stderr = (error as { stderr?: unknown } | null)?.stderr;
+  if (typeof stderr === 'string' && stderr.trim()) return stderr.trim();
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Last line of defence. Anything that reaches a log goes through here, so a
  * password cannot ride out inside a message from a tool we do not control.
  */
@@ -263,9 +278,9 @@ async function main() {
 // the real functions rather than a copy of them that can drift out of step.
 if (process.argv[1]?.endsWith('drift-check.ts')) {
   main().catch((error) => {
-    console.error(explain(scrub(error instanceof Error ? error.message : String(error))));
+    console.error(explain(scrub(failureText(error))));
     process.exit(1);
   });
 }
 
-export { pgEnv, scrub, explain };
+export { pgEnv, scrub, explain, failureText };

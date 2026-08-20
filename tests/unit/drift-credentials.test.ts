@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { explain, pgEnv, scrub } from '../../scripts/drift-check';
+import { explain, failureText, pgEnv, scrub } from '../../scripts/drift-check';
 
 /**
  * Regression test for [D-89].
@@ -105,5 +105,33 @@ describe('an unreachable address explains itself', () => {
   it('leaves an unrelated failure exactly as it found it', () => {
     const other = 'password authentication failed for user "postgres"';
     expect(explain(other)).toBe(other);
+  });
+});
+
+describe('a failure prints what the tool said, not what we asked it', () => {
+  it('prefers stderr over the echoed command', () => {
+    const error = Object.assign(new Error('Command failed: psql -c with objs as (select …600 more chars…)'), {
+      stderr: 'psql: error: connection to server failed: Network is unreachable\n',
+    });
+    // The CI log carried sixty lines of introspection SQL above the one line
+    // that named the problem, and the reader stops at the top. [D-92]
+    expect(failureText(error)).toBe('psql: error: connection to server failed: Network is unreachable');
+  });
+
+  it('falls back to the message when there is no stderr — our own throws have none', () => {
+    expect(failureText(new Error('SUPABASE_DB_URL must be a connection URI'))).toBe(
+      'SUPABASE_DB_URL must be a connection URI',
+    );
+  });
+
+  it('treats an empty stderr as absent rather than printing nothing at all', () => {
+    expect(failureText(Object.assign(new Error('exited with code 2'), { stderr: '   \n' }))).toBe(
+      'exited with code 2',
+    );
+  });
+
+  it('survives being handed something that is not an Error', () => {
+    expect(failureText('psql went missing')).toBe('psql went missing');
+    expect(failureText(null)).toBe('null');
   });
 });

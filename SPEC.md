@@ -280,3 +280,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   browser run the same line at different instants; either side of midnight they
   disagree, React re-renders the subtree, and the control the user is operating
   detaches. Compute it on the server and pass it down. `[D-90]`
+- **A job reports only what it measured.** No comparison means no drift claim,
+  however loudly the run failed. `drift-weekly` posted "Schema drift: unknown"
+  and then "Still drifting" on two runs that never reached the remote at all.
+  `[D-92]`
