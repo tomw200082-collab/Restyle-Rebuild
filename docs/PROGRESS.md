@@ -193,3 +193,53 @@ The admin surfaces are where the AptDeco model stops being a diagram and becomes
 4. **Two tests encoded assumptions the product doesn't hold** `[D-48]`: a locator filtering on `"₪800"` (ICU emits `‏800 ‏₪` — trailing symbol, nbsp, two RLM marks, so it could never match) and a hardcoded `'evening'` shift that is unavailable on Fridays. Both now key off stable attributes and live options.
 
 **Also improved:** `send()` on the notification provider is now a non-throwing boundary — a broken email cannot make a completed payout report as failed `[D-47]`.
+
+---
+
+## Phase 5 — SEO layer + migration ✅
+
+Skills read at phase start: `nextjs-seo-engine`, `hebrew-rtl-ui`, `restyle-design-system`, `restyle-e2e`.
+
+Organic search is the growth thesis. The system being replaced was a client-rendered SPA whose every item lived at `ItemDetails?id=<24-hex>` — no slug, no server HTML, no structured data, and no category, brand or city pages at all. This phase converts that into indexable surface area, and moves the accumulated authority across rather than abandoning it.
+
+**Built**
+
+- **Sitemap** — an index at `/sitemap.xml` plus chunks at `/sitemap/<n>.xml`, split at 45,000 URLs. Written as route handlers, not the `sitemap.ts` convention, which has no index form and leaves `/sitemap.xml` 404ing `[D-49]`. Carries every `active` and `sold` item, all categories, qualifying brand and category×city hubs, and the static pages.
+- **robots.txt** — disallows `/admin`, `/dashboard`, `/checkout`, `/pay`, `/api`, `/login`, `/auth`; points at the sitemap.
+- **Structured data** — `Product` (ILS, decimal-string price, `UsedCondition`, `SoldOut` when sold) and `BreadcrumbList` on item pages; `BreadcrumbList` + `ItemList` on hubs; `Organization` + `WebSite` with `SearchAction` once at the root; `FAQPage` on how-it-works carrying **both** tracks' questions, since a crawler should see everything on the URL even though the page shows one track at a time.
+- **`/category/[slug]/[city]`** — programmatic hubs, pre-rendered for the pairs that clear the item threshold, `noindex` below it, and linked from the parent category page so they are not orphans in the internal graph.
+- **`generateStaticParams`** on items (active only — sold items stay indexable but render on demand), categories and brands.
+- **Dynamic OG images** — `/item/[slug]/opengraph-image` composes photo, title and price at 1200×630.
+- **Catalogue canonical policy** moved into `generateMetadata`: a single category or brand filter canonicalises onto its hub, a hubless filter back to `/catalog`, and two or more facets go `noindex, nofollow`.
+- **Legacy redirects** — 301s in middleware for every path that appears in already-sent email, matched case-insensitively because React Router was and both casings are in the wild `[D-42]`. Item and order ids resolve through `legacy_redirects`; anything unmapped lands on the catalogue, never a 404.
+- **`scripts/import-legacy.ts`** — idempotent, keyed on legacy ids, `--dry` runs the real SQL inside a transaction and rolls back. Uses `display_price` (what the buyer saw), not `requested_price` (the seller's net) `[D-35]`. Rows missing a category or dimensions are imported as `draft` rather than dropped, so the redirect survives and the gap is visible in the admin. Historical orders are archived, not replayed — their state machine no longer exists.
+- **`scripts/validate-jsonld.ts`** — parses every `ld+json` block on the running site and asserts the fields that decide rich results. Broken structured data fails silently in production otherwise.
+- **Content pages** — terms, privacy, cancellation policy, accessibility statement, how it works, buyer protection. Hebrew reproduced from the legacy platform with exactly the three corrections in `[D-39]`, each of which would otherwise publish a false statement about the buyer's rights or about who receives their data.
+- **`npm run db:reset`** `[D-52]`, and a favicon set.
+
+**Gate 5 — all green**
+| Check | Result |
+|---|---|
+| Build / typecheck / lint | ✅ |
+| Vitest | ✅ 77 tests (slug, pricing, scheduling, SEO) |
+| RLS assertions | ✅ |
+| Playwright | ✅ 55 tests across anon / buyer / seller / admin |
+| `scripts/validate-jsonld.ts` | ✅ |
+
+**Lighthouse (mobile, local production build)**
+| Page | Perf | SEO | A11y | Best practices |
+|---|---|---|---|---|
+| `/` | 99 | 100 | 100 | 96 |
+| `/item/[slug]` | 98 | 100 | 100 | 96 |
+| `/category/sofas-armchairs` | 100 | 100 | 100 | 96 |
+
+The remaining 4 points on best practices were a missing `/favicon.ico`, now added.
+
+**Four defects found while testing this phase**
+
+1. **`/sitemap.xml` returned a 404** `[D-49]`. Adding `generateSitemaps` relocates the output to `/sitemap/<id>.xml` and publishes no index — so the one URL robots.txt points at, and every crawler tries first, was missing. Nothing in the application requests it, so nothing would ever have noticed.
+2. **Every primary and danger button rendered ink text on clay instead of white** `[D-51]`. `tailwind-merge` classified the custom `text-body-sm` font-size utility as a colour and dropped `text-white` from the merge. It had been wrong since Phase 1, in the most-clicked element in the product, and was invisible because dark-on-clay is legible enough not to look broken. A contrast audit found it.
+3. **Five palette tokens failed WCAG AA** `[D-50]`, including the accent on both of the two things it exists for: the price (3.78:1) and the primary CTA (4.04:1). Corrected by uniform darkening, which preserves hue exactly. Item-page accessibility went 85 → 100.
+4. **The gallery's `role="tablist"` was ARIA promising a relationship the markup did not have** — no tabpanel, no `aria-controls` — and it destroyed the list semantics of the `ul`/`li` it sat on, so the thumbnails were simultaneously not-tabs and not-a-list. Replaced with a plain list and `aria-current`.
+
+**Also found:** `next build` reuses `.next/cache/fetch-cache`, so a build straight after a data reset prerenders the previous catalogue — pages for listings that no longer exist, with 404ing images — and reports success `[D-52]`.
