@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Frank_Ruhl_Libre, Heebo } from 'next/font/google';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { JsonLdScript } from '@/components/seo/json-ld';
+import { organizationJsonLd, websiteJsonLd } from '@/lib/seo/jsonld';
 import { env } from '@/lib/env';
 import './globals.css';
 
@@ -31,6 +33,13 @@ export const metadata: Metadata = {
     'רהיטים יד שנייה נבחרים, עם הובלה עד הבית ותשלום מאובטח. ספות, שולחנות, ארונות ועוד — בתל אביב, רמת גן והסביבה.',
   applicationName: 'Restyle',
   formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '48x48' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     type: 'website',
     locale: 'he_IL',
@@ -54,6 +63,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           דילוג לתוכן הראשי
         </a>
+        {/* Site-wide entities. Emitted once, at the root, never per page. */}
+        <JsonLdScript data={[organizationJsonLd(), websiteJsonLd()]} />
         <div className="flex min-h-dvh flex-col">
           <SiteHeader />
           <main id="main" className="flex-1">

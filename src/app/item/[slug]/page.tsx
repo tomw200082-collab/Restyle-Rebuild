@@ -8,6 +8,10 @@ import { Gallery } from '@/components/item/gallery';
 import { DeliveryEstimator } from '@/components/item/delivery-estimator';
 import { FavoriteButton } from '@/components/item/favorite-button';
 import { ListingCard } from '@/components/listing/listing-card';
+import { JsonLdScript } from '@/components/seo/json-ld';
+import { breadcrumbJsonLd, productJsonLd } from '@/lib/seo/jsonld';
+import { listSitemapListings } from '@/lib/seo/sitemap-data';
+import { photoUrl } from '@/lib/storage';
 import { getListingBySlug, listSimilar } from '@/lib/db/listings';
 import { getDeliveryZones, getSiteConfig } from '@/lib/pricing/config';
 import { formatDimensions, formatPrice, publicName } from '@/lib/format';
@@ -16,6 +20,19 @@ import { CONDITION_LABELS } from '@/lib/labels';
 export const revalidate = 60;
 
 type Params = { params: Promise<{ slug: string }> };
+
+/**
+ * Pre-renders the active catalogue and leaves sold items to ISR.
+ *
+ * Sold listings stay indexable and stay 200 forever, but there can eventually
+ * be far more of them than active ones, and building every one on every deploy
+ * would trade build time for pages nobody is arriving on today. They render on
+ * first request and are cached from then on.
+ */
+export async function generateStaticParams() {
+  const listings = await listSitemapListings();
+  return listings.filter((l) => l.status === 'active').map((l) => ({ slug: l.slug }));
+}
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
@@ -65,8 +82,35 @@ export default async function ItemPage({ params }: Params) {
     commission_pct_override: listing.commission_pct_override,
   };
 
+  const photos = [...(listing.listing_photos ?? [])].sort((a, b) => a.sort - b.sort);
+
+  const trail = [
+    { name: 'בית', path: '/' },
+    { name: 'קטלוג', path: '/catalog' },
+    ...(listing.categories
+      ? [{ name: listing.categories.name_he, path: `/category/${listing.categories.slug}` }]
+      : []),
+    { name: listing.title, path: `/item/${listing.slug}` },
+  ];
+
   return (
     <Container className="py-8">
+      <JsonLdScript
+        data={[
+          productJsonLd({
+            title: listing.title,
+            description: listing.description,
+            slug: listing.slug,
+            priceAgorot: listing.price_agorot,
+            status: listing.status,
+            photoUrls: photos.map((photo) => photoUrl(photo.storage_path)),
+            brandName: brandName,
+            categoryName: listing.categories?.name_he ?? null,
+          }),
+          breadcrumbJsonLd(trail),
+        ]}
+      />
+
       <nav aria-label="מיקום" className="mb-6 text-body-sm text-ink-muted">
         {/* DOM order is semantic (outermost first); flex handles the RTL flip. */}
         <ol className="flex flex-wrap items-center gap-2">

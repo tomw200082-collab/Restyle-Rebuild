@@ -176,10 +176,13 @@ export type TaxonomyRow = { id: string; slug: string; name: string };
 export async function getTaxonomy() {
   const supabase = createPublicSupabase({ tags: [tags.categories, tags.brands] });
 
-  const [{ data: categories }, { data: brands }] = await Promise.all([
-    supabase.from('categories').select('id, slug, name_he, intro_he, sort').order('sort'),
-    supabase.from('brands').select('id, slug, name, sort').order('sort'),
-  ]);
+  const [{ data: categories, error: categoriesError }, { data: brands, error: brandsError }] =
+    await Promise.all([
+      supabase.from('categories').select('id, slug, name_he, intro_he, sort').order('sort'),
+      supabase.from('brands').select('id, slug, name, sort').order('sort'),
+    ]);
+  if (categoriesError) throw categoriesError;
+  if (brandsError) throw brandsError;
 
   return {
     categories: (categories ?? []).map((c) => ({

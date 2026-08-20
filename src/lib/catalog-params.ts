@@ -67,15 +67,50 @@ export function parseCatalogSearchParams(
 }
 
 /**
- * Indexing policy for a catalogue URL.
+ * Indexing and canonical policy for a catalogue URL.
  *
  * The unfiltered catalogue is the indexable page. Every filtered variant is
  * noindex: category, brand and city each have a dedicated hub that is the
  * canonical home for that query, and arbitrary facet combinations produce
  * unbounded near-duplicates.
+ *
+ * `follow` is kept on single-filter URLs — the links out of them lead to item
+ * pages we do want crawled — and dropped once two or more filters are combined,
+ * which is where the combinatorial explosion starts eating crawl budget.
  */
-export function catalogRobots(activeFilterCount: number): { noindex: boolean } {
-  return { noindex: activeFilterCount > 0 };
+export function catalogRobots(activeFilterCount: number): {
+  noindex: boolean;
+  nofollow: boolean;
+} {
+  return { noindex: activeFilterCount > 0, nofollow: activeFilterCount > 1 };
+}
+
+/**
+ * Where a filtered catalogue URL points its canonical.
+ *
+ * A single category or brand filter has a real hub page; that hub is the
+ * canonical home for the query, and pointing at it consolidates the signal
+ * rather than splitting it between two URLs showing the same items.
+ */
+export function catalogCanonical(
+  raw: Record<string, string | string[] | undefined>,
+  activeFilterCount: number,
+  taxonomy: Taxonomy,
+): string {
+  if (activeFilterCount === 0) return '/catalog';
+
+  if (activeFilterCount === 1) {
+    const categorySlug = first(raw.category);
+    if (categorySlug && taxonomy.categories.some((c) => c.slug === categorySlug)) {
+      return `/category/${categorySlug}`;
+    }
+    const brandSlug = first(raw.brand);
+    if (brandSlug && taxonomy.brands.some((b) => b.slug === brandSlug)) {
+      return `/brand/${brandSlug}`;
+    }
+  }
+
+  return '/catalog';
 }
 
 export function buildCatalogHref(

@@ -159,6 +159,58 @@ export function suffixFromSlug(slug: string): string | null {
   return match?.[1] ?? null;
 }
 
+/**
+ * Gush Dan cities, mapped to the spellings people actually search and link.
+ *
+ * These are URL segments on the category × city hubs, so they are worth
+ * getting right by hand rather than leaving to the letter-level fallback:
+ * "תל אביב-יפו" transliterates mechanically to something no one would type,
+ * and these twenty names cover the whole service area.
+ */
+const CITIES: Record<string, string> = {
+  'תל אביב-יפו': 'tel-aviv-yafo',
+  'תל אביב': 'tel-aviv',
+  'רמת גן': 'ramat-gan',
+  גבעתיים: 'givatayim',
+  חולון: 'holon',
+  'בת ים': 'bat-yam',
+  'בני ברק': 'bnei-brak',
+  הרצליה: 'herzliya',
+  'רמת השרון': 'ramat-hasharon',
+  'פתח תקווה': 'petah-tikva',
+  'ראשון לציון': 'rishon-lezion',
+  'כפר סבא': 'kfar-saba',
+  רעננה: 'raanana',
+  'הוד השרון': 'hod-hasharon',
+  'ראש העין': 'rosh-haayin',
+  'אור יהודה': 'or-yehuda',
+  'יהוד-מונוסון': 'yehud-monosson',
+  'קריית אונו': 'kiryat-ono',
+  'קרית אונו': 'kiryat-ono',
+  'גני תקווה': 'ganei-tikva',
+  אזור: 'azor',
+  'נס ציונה': 'ness-ziona',
+  'גבעת שמואל': 'givat-shmuel',
+  'מודיעין-מכבים-רעות': 'modiin',
+};
+
+/** Hebrew city name → URL segment. Falls back to transliteration. */
+export function citySlug(city: string): string {
+  const known = CITIES[city.trim()];
+  if (known) return known;
+  return capAtWordBoundary(transliterate(city), MAX_BODY) || 'ir';
+}
+
+/**
+ * URL segment → Hebrew city name, or null.
+ *
+ * Reversed from the same table rather than kept as a second map, so the two
+ * directions cannot drift apart.
+ */
+export function cityFromSlug(slug: string, candidates: string[]): string | null {
+  return candidates.find((city) => citySlug(city) === slug) ?? null;
+}
+
 /** Category and brand slugs carry no suffix — they are unique by name. */
 export function buildSimpleSlug(name: string): string {
   return capAtWordBoundary(transliterate(name), MAX_BODY);
