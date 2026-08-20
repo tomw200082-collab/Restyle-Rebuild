@@ -15,10 +15,13 @@ import { describe, expect, it } from 'vitest';
  *   1. the pattern survives a colourised summary;
  *   2. an unreadable count throws rather than degrading to zero.
  *
- * The helpers are re-declared rather than imported because `stages-static.ts`
- * pulls in the whole gate at module load. The contract under test is the
- * regex-plus-guard pair, and duplicating six lines is cheaper than exporting an
- * internal for a test to reach — see restyle-yagni.
+ * The helpers are re-declared rather than imported: the contract under test is
+ * the regex-plus-guard pair, and duplicating six lines is cheaper than
+ * exporting an internal for a test to reach — see restyle-yagni. (An earlier
+ * version of this note claimed importing `stages-static.ts` pulls in the whole
+ * gate at module load. It does not — it imports node builtins and one type, and
+ * `gate-failure-reporting.test.ts` imports it directly. The duplication is a
+ * preference here, not a constraint.)
  */
 
 const ESC = String.fromCharCode(27);

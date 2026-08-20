@@ -55,10 +55,112 @@ select 'ZZ_TOTAL', count(*), md5(string_agg(obj, E'\\n' order by obj)) from objs
 order by 1;`;
 }
 
+
+/**
+ * psql, with the credentials in the environment instead of in argv. [D-89]
+ *
+ * A connection string on the command line is a password one bad character away
+ * from a public log. It happened: a database password containing `%` made psql
+ * reject the URI with `invalid percent-encoded token: "<the password>"`, and
+ * GitHub's secret masking did not catch it, because the fragment psql quoted is
+ * not the whole string the masker was given. The repository is public.
+ *
+ * `PG*` variables carry exactly the same information and cannot be echoed back
+ * by a parser that never received a URI. The decode falls back to the raw value
+ * so a password that was never percent-encoded still works rather than
+ * exploding — the footgun is removed rather than documented.
+ */
+function pgEnv(connectionString: string): NodeJS.ProcessEnv {
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+  // psql treats a first argument that is not a URI as a *database name* and
+  // quietly connects to the local socket instead — "connection to server on
+  // socket /var/run/postgresql/.s.PGSQL.5432 failed" is what a mis-pasted
+  // secret looks like, and it names neither the secret nor the real problem.
+  // Say it here instead. [D-89]
+  if (!/^postgres(ql)?:\/\//.test(connectionString)) {
+    throw new Error(
+      'SUPABASE_DB_URL must be a connection URI beginning with postgresql:// — ' +
+        'Supabase → Connect → Session pooler (the direct host is IPv6-only). ' +
+        `Got ${connectionString.length} characters starting "${connectionString.slice(0, 12)}…".`,
+    );
+  }
+
+  const url = new URL(connectionString);
+  const sslmode = url.searchParams.get('sslmode');
+  return {
+    ...process.env,
+    PGHOST: url.hostname,
+    PGPORT: url.port || '5432',
+    PGUSER: decode(url.username) || 'postgres',
+    PGPASSWORD: decode(url.password),
+    PGDATABASE: url.pathname.replace(/^\//, '') || 'postgres',
+    ...(sslmode ? { PGSSLMODE: sslmode } : {}),
+  };
+}
+
+/**
+ * `db.<ref>.supabase.co` resolves to IPv6 only, and GitHub's runners have no
+ * IPv6 route — so the direct connection string fails with a bare "Network is
+ * unreachable" that names neither cause nor cure. Supabase's session pooler is
+ * reachable over IPv4 and is what CI wants. [D-89]
+ */
+function explain(message: string): string {
+  if (!/Network is unreachable|ENETUNREACH|EHOSTUNREACH/.test(message)) return message;
+  return (
+    `${message}\n\n` +
+    'That address is IPv6, and GitHub Actions runners have no IPv6 route. This is ' +
+    'the direct-connection string; CI needs the **session pooler** instead:\n' +
+    '  Supabase → Connect → Session pooler (IPv4, port 5432)\n' +
+    '  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres\n' +
+    'Note the username carries the project ref — it is not plain `postgres`.'
+  );
+}
+
+/**
+ * The useful half of a failed `execFile`.
+ *
+ * Node builds its rejection message as `Command failed: <the entire argv>` and
+ * then the tool's output. For this script the argv is sixty lines of
+ * introspection SQL, so the one line that says what actually went wrong arrives
+ * at the bottom of a wall of `select` — and the reader stops at the top. The
+ * tool's own `stderr` is the part that was ever worth printing. [D-92]
+ */
+function failureText(error: unknown): string {
+  const stderr = (error as { stderr?: unknown } | null)?.stderr;
+  if (typeof stderr === 'string' && stderr.trim()) return stderr.trim();
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Last line of defence. Anything that reaches a log goes through here, so a
+ * password cannot ride out inside a message from a tool we do not control.
+ */
+function scrub(text: string): string {
+  let out = text;
+  for (const value of [process.env.SUPABASE_DB_URL, process.env.DATABASE_URL]) {
+    if (!value) continue;
+    out = out.split(value).join('***');
+    try {
+      const password = decodeURIComponent(new URL(value).password);
+      if (password.length >= 4) out = out.split(password).join('***');
+    } catch {
+      /* not a URL we can parse; the whole-string replacement above still ran */
+    }
+  }
+  return out;
+}
+
 async function psqlDigests(connectionString: string, sql: string): Promise<Digest[]> {
-  const { stdout } = await exec('psql', [connectionString, '-tA', '-F', '|', '-c', sql], {
+  const { stdout } = await exec('psql', ['-tA', '-F', '|', '-c', sql], {
     timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
+    env: pgEnv(connectionString),
   });
   return stdout
     .split('\n')
@@ -75,11 +177,10 @@ async function buildReference(connectionString: string): Promise<number> {
   // A leftover schema from a previous run would be compared instead of the
   // migrations, which is the one thing this check must never do.
   await exec('psql', [
-    connectionString,
     '-v', 'ON_ERROR_STOP=1',
     '-c', 'drop schema if exists public cascade; drop schema if exists private cascade; drop schema if exists auth cascade;',
     '-c', 'create schema public;',
-  ], { timeout: 120_000 });
+  ], { timeout: 120_000, env: pgEnv(connectionString) });
 
   const { stdout } = await exec(
     'npx',
@@ -107,7 +208,8 @@ async function main() {
   }
   if (!remote) {
     console.error('SUPABASE_DB_URL is required — the remote to compare against.');
-    console.error('Supabase → Project Settings → Database → Connection string (URI).');
+    console.error('Supabase → Connect → Session pooler. The direct host is IPv6-only,');
+    console.error('which no GitHub runner can reach, so CI needs the pooler string.');
     process.exit(1);
   }
 
@@ -173,7 +275,13 @@ async function main() {
   console.log(`evidence: ${relative(ROOT, out)}`);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+// Only when run directly, so a test can import `pgEnv` and `scrub` and exercise
+// the real functions rather than a copy of them that can drift out of step.
+if (process.argv[1]?.endsWith('drift-check.ts')) {
+  main().catch((error) => {
+    console.error(explain(scrub(failureText(error))));
+    process.exit(1);
+  });
+}
+
+export { pgEnv, scrub, explain, failureText };

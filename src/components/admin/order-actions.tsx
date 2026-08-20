@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
 import { markDelivered, markPickedUp, scheduleDelivery } from '@/lib/actions/admin';
-import { SHIFT_HOURS, availableDates, type Shift } from '@/lib/scheduling';
+import { SHIFT_HOURS, type Shift } from '@/lib/scheduling';
 import { formatShortDate } from '@/lib/format';
 import type { Enums } from '@/types/database';
 
@@ -20,10 +20,13 @@ export function AdminOrderActions({
   status,
   proposedWindows,
   delivery,
+  dates,
 }: {
   orderId: string;
   status: Enums<'order_status'>;
   proposedWindows: Array<{ date: string; shift: string }>;
+  /** Server-computed, for the same reason as `ConfirmSale`. [D-90] */
+  dates: Array<{ date: string; shifts: Shift[] }>;
   delivery: {
     pickup_date: string | null;
     pickup_shift: Shift | null;
@@ -37,7 +40,6 @@ export function AdminOrderActions({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const dates = availableDates(new Date(), 30);
   const [form, setForm] = useState({
     pickup_date: proposedWindows[0]?.date ?? '',
     pickup_shift: (proposedWindows[0]?.shift as Shift) ?? '',

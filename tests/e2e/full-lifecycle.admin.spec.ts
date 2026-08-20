@@ -40,14 +40,32 @@ async function asRole(browser: Browser, role: 'buyer' | 'seller' | 'admin'): Pro
  * on which weekday the suite happens to run. `index` counts from the first
  * real option, skipping the "בחרו" placeholder; negative indexes count back
  * from the end.
+ *
+ * **The wait is the point.** `#pickup-shift` and `#dropoff-shift` are disabled
+ * until the date beside them has a value, and their options are derived from
+ * that date — so choosing the date is what creates them, one React render
+ * later. `evaluateAll` resolves whatever matches at the instant it runs and,
+ * unlike a Playwright assertion, never retries: on a loaded runner it can see
+ * the placeholder alone and this helper then reports a select with three
+ * options as having none. Assert the list is populated first; everything after
+ * that reads a settled DOM. [D-94]
  */
 async function selectByIndex(page: Page, selector: string, index: number) {
-  const options = page.locator(`${selector} option`);
+  // `:not([value=""])` drops the "בחרו" placeholder in the locator rather than
+  // after the fact, so the assertion below is about real options.
+  const options = page.locator(`${selector} option:not([value=""])`);
+  await expect(
+    options,
+    `${selector} never offered an option — the select it derives from may not have been set`,
+  ).not.toHaveCount(0);
+
   const values = (await options.evaluateAll((nodes) =>
-    nodes.map((n) => (n as HTMLOptionElement).value).filter(Boolean),
+    nodes.map((n) => (n as HTMLOptionElement).value),
   )) as string[];
   const value = index < 0 ? values.at(index) : values[index];
-  if (!value) throw new Error(`${selector} offered no option at index ${index}`);
+  if (!value) {
+    throw new Error(`${selector} offered no option at index ${index} — ${values.length} available`);
+  }
   await page.locator(selector).selectOption(value);
   return value;
 }
