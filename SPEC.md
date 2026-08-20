@@ -272,3 +272,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   its workflow runs as `action_required` and never runs them, so committing
   back to the PR branch leaves a head with no checks — un-mergeable under
   §L2, by the gate's own doing. `[D-88]`
+- **A credential never travels in argv.** psql quoted a malformed password
+  back in an error and it landed in a public CI log; secret masking cannot
+  catch a fragment of the string it was given. Use `PG*` environment
+  variables, and scrub anything on its way to a log. `[D-89]`

@@ -55,10 +55,66 @@ select 'ZZ_TOTAL', count(*), md5(string_agg(obj, E'\\n' order by obj)) from objs
 order by 1;`;
 }
 
+
+/**
+ * psql, with the credentials in the environment instead of in argv. [D-89]
+ *
+ * A connection string on the command line is a password one bad character away
+ * from a public log. It happened: a database password containing `%` made psql
+ * reject the URI with `invalid percent-encoded token: "<the password>"`, and
+ * GitHub's secret masking did not catch it, because the fragment psql quoted is
+ * not the whole string the masker was given. The repository is public.
+ *
+ * `PG*` variables carry exactly the same information and cannot be echoed back
+ * by a parser that never received a URI. The decode falls back to the raw value
+ * so a password that was never percent-encoded still works rather than
+ * exploding — the footgun is removed rather than documented.
+ */
+function pgEnv(connectionString: string): NodeJS.ProcessEnv {
+  const decode = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+  const url = new URL(connectionString);
+  const sslmode = url.searchParams.get('sslmode');
+  return {
+    ...process.env,
+    PGHOST: url.hostname,
+    PGPORT: url.port || '5432',
+    PGUSER: decode(url.username) || 'postgres',
+    PGPASSWORD: decode(url.password),
+    PGDATABASE: url.pathname.replace(/^\//, '') || 'postgres',
+    ...(sslmode ? { PGSSLMODE: sslmode } : {}),
+  };
+}
+
+/**
+ * Last line of defence. Anything that reaches a log goes through here, so a
+ * password cannot ride out inside a message from a tool we do not control.
+ */
+function scrub(text: string): string {
+  let out = text;
+  for (const value of [process.env.SUPABASE_DB_URL, process.env.DATABASE_URL]) {
+    if (!value) continue;
+    out = out.split(value).join('***');
+    try {
+      const password = decodeURIComponent(new URL(value).password);
+      if (password.length >= 4) out = out.split(password).join('***');
+    } catch {
+      /* not a URL we can parse; the whole-string replacement above still ran */
+    }
+  }
+  return out;
+}
+
 async function psqlDigests(connectionString: string, sql: string): Promise<Digest[]> {
-  const { stdout } = await exec('psql', [connectionString, '-tA', '-F', '|', '-c', sql], {
+  const { stdout } = await exec('psql', ['-tA', '-F', '|', '-c', sql], {
     timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
+    env: pgEnv(connectionString),
   });
   return stdout
     .split('\n')
@@ -75,11 +131,10 @@ async function buildReference(connectionString: string): Promise<number> {
   // A leftover schema from a previous run would be compared instead of the
   // migrations, which is the one thing this check must never do.
   await exec('psql', [
-    connectionString,
     '-v', 'ON_ERROR_STOP=1',
     '-c', 'drop schema if exists public cascade; drop schema if exists private cascade; drop schema if exists auth cascade;',
     '-c', 'create schema public;',
-  ], { timeout: 120_000 });
+  ], { timeout: 120_000, env: pgEnv(connectionString) });
 
   const { stdout } = await exec(
     'npx',
@@ -173,7 +228,13 @@ async function main() {
   console.log(`evidence: ${relative(ROOT, out)}`);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+// Only when run directly, so a test can import `pgEnv` and `scrub` and exercise
+// the real functions rather than a copy of them that can drift out of step.
+if (process.argv[1]?.endsWith('drift-check.ts')) {
+  main().catch((error) => {
+    console.error(scrub(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  });
+}
+
+export { pgEnv, scrub };
