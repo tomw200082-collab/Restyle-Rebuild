@@ -284,3 +284,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   however loudly the run failed. `drift-weekly` posted "Schema drift: unknown"
   and then "Still drifting" on two runs that never reached the remote at all.
   `[D-92]`
+- **A failing check prints what failed.** Not the last lines it produced — a
+  runner puts its diagnosis above the attachments, so a tail lands on
+  screenshot filenames. The gate announced "e2e suite failed" with nothing in
+  the log naming the assertion. `[D-93]`
