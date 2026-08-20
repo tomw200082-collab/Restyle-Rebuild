@@ -112,9 +112,14 @@ git history is the record for L1.
   changes RLS policies, and the order that makes that safe is CI first, on a
   stack that can be thrown away, then the real project once the change is proven
   and the drift digest re-verified.
-  **Still open:** every buyer spec runs signed out in CI even though the setup's
-  logins succeed. Not reproducible here — this environment has no Docker and no
-  Supabase CLI, so there is no local stack to run the suite against. Rather than
-  guess at a fix, the setup now proves the storage state it saves actually
-  authenticates `[D-83]`, so the next run reports the cause once instead of
-  eleven unrelated locator timeouts.
+  **Resolved after the first push:** every buyer spec ran signed out because the
+  anon sign-out spec used `buyer@restyle.test` — the same account the setup
+  saves to `.auth/buyer.json` — and `signOut()` defaults to global scope, which
+  revokes every session that account holds `[D-85]`. Found by reading, not by
+  running; this environment has no Docker and no Supabase CLI, so there is no
+  local stack to reproduce against. The setup's new self-check `[D-83]` stays
+  regardless: it is what would have named this in one line instead of eleven.
+  **For the operator:** «יציאה» currently signs a person out on *every* device.
+  That is `signOut()`'s default and it is a product decision, not a bug — a
+  one-word change to `{ scope: 'local' }` if it should be otherwise. Left as it
+  is, deliberately: authentication semantics are not mine to change.

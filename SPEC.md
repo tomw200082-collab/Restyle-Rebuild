@@ -261,3 +261,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   Lighthouse runs sharing one browser audited a leftover target and reported a
   missing `<title>` on a page that has always had one. A defect that is
   plausible and carries a number is the hardest kind to disbelieve. `[D-84]`
+- **No spec may mutate a shared fixture's authentication state.** `signOut()`
+  defaults to global scope and revokes every session that account holds. The
+  anon sign-out spec used the buyer account and silently signed eleven buyer
+  specs out. `[D-85]`
