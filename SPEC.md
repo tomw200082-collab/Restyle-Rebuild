@@ -288,3 +288,6 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   runner puts its diagnosis above the attachments, so a tail lands on
   screenshot filenames. The gate announced "e2e suite failed" with nothing in
   the log naming the assertion. `[D-93]`
+- **A derived control is asserted populated before it is read.** A select whose
+  options come from another select gets them one render later, and
+  `evaluateAll` does not retry the way an assertion does. `[D-94]`
