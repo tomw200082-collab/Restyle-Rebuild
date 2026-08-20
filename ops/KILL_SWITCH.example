@@ -1,0 +1,8 @@
+# Rename this file to KILL_SWITCH (no extension) to halt all automation.
+#
+# Contents are ignored — presence is the signal. Writing the reason and the
+# time here is a courtesy to whoever finds it.
+#
+# reason: <why automation was stopped>
+# by:     <who>
+# at:     <ISO timestamp>

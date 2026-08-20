@@ -33,6 +33,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ job: s
 
   try {
     const result = await runJob(job as JobName);
+    // A halted job returns 200, not 5xx. The job did exactly what it was told;
+    // a failure status would make Vercel Cron retry the very automation the
+    // operator just stopped. CLAUDE.md §6.
     return NextResponse.json(result);
   } catch (error) {
     console.error(`[cron:${job}]`, error);

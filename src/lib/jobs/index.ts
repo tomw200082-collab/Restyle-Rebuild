@@ -10,6 +10,7 @@ import {
   transitionOrder,
 } from '@/lib/db/orders';
 import { getNotificationProvider } from '@/lib/notifications';
+import { killSwitchState } from '@/lib/ops/kill-switch';
 
 export type JobName =
   | 'seller-timeout'
@@ -30,7 +31,13 @@ export const JOB_NAMES: JobName[] = [
   'housekeeping',
 ];
 
-export type JobResult = { job: JobName; processed: number; details?: string[] };
+export type JobResult = {
+  job: JobName;
+  processed: number;
+  details?: string[];
+  /** Set when the kill switch stopped the job before it did any work. */
+  halted?: boolean;
+};
 
 /**
  * All jobs share three properties, and each exists because of a specific way
@@ -301,6 +308,16 @@ async function housekeeping(): Promise<JobResult> {
 
 /** `now` is injectable so the timing logic is unit-testable without waiting. */
 export async function runJob(job: JobName, now: Date = new Date()): Promise<JobResult> {
+  // One guard, seven jobs. Every scheduled job routes through here, so the
+  // kill switch cannot be forgotten on the next one that gets added — a check
+  // per job would be seven places to forget it. It runs before any query,
+  // any transition and any refund: halting has to mean nothing happened.
+  // CLAUDE.md §6, EXECUTION_POLICY.md.
+  const kill = killSwitchState();
+  if (kill.active) {
+    return { job, processed: 0, halted: true, details: [`kill switch active (${kill.detail})`] };
+  }
+
   switch (job) {
     case 'seller-timeout':
       return sellerTimeout(now);
