@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { pgEnv, scrub } from '../../scripts/drift-check';
+import { explain, pgEnv, scrub } from '../../scripts/drift-check';
 
 /**
  * Regression test for [D-89].
@@ -88,5 +88,22 @@ describe('scrub keeps a password out of anything logged', () => {
     delete process.env.SUPABASE_DB_URL;
     delete process.env.DATABASE_URL;
     expect(scrub('31 migrations applied')).toBe('31 migrations applied');
+  });
+});
+
+describe('an unreachable address explains itself', () => {
+  it('names IPv6 and the pooler when the network is unreachable', () => {
+    const psql =
+      'connection to server at "db.abc.supabase.co" (2a05:d014:913:8602::1), port 5432 ' +
+      'failed: Network is unreachable';
+    const out = explain(psql);
+    expect(out).toContain('IPv6');
+    expect(out).toContain('session pooler');
+    expect(out).toContain('pooler.supabase.com');
+  });
+
+  it('leaves an unrelated failure exactly as it found it', () => {
+    const other = 'password authentication failed for user "postgres"';
+    expect(explain(other)).toBe(other);
   });
 });

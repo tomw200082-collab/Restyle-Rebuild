@@ -105,6 +105,24 @@ function pgEnv(connectionString: string): NodeJS.ProcessEnv {
 }
 
 /**
+ * `db.<ref>.supabase.co` resolves to IPv6 only, and GitHub's runners have no
+ * IPv6 route — so the direct connection string fails with a bare "Network is
+ * unreachable" that names neither cause nor cure. Supabase's session pooler is
+ * reachable over IPv4 and is what CI wants. [D-89]
+ */
+function explain(message: string): string {
+  if (!/Network is unreachable|ENETUNREACH|EHOSTUNREACH/.test(message)) return message;
+  return (
+    `${message}\n\n` +
+    'That address is IPv6, and GitHub Actions runners have no IPv6 route. This is ' +
+    'the direct-connection string; CI needs the **session pooler** instead:\n' +
+    '  Supabase → Connect → Session pooler (IPv4, port 5432)\n' +
+    '  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres\n' +
+    'Note the username carries the project ref — it is not plain `postgres`.'
+  );
+}
+
+/**
  * Last line of defence. Anything that reaches a log goes through here, so a
  * password cannot ride out inside a message from a tool we do not control.
  */
@@ -245,9 +263,9 @@ async function main() {
 // the real functions rather than a copy of them that can drift out of step.
 if (process.argv[1]?.endsWith('drift-check.ts')) {
   main().catch((error) => {
-    console.error(scrub(error instanceof Error ? error.message : String(error)));
+    console.error(explain(scrub(error instanceof Error ? error.message : String(error))));
     process.exit(1);
   });
 }
 
-export { pgEnv, scrub };
+export { pgEnv, scrub, explain };
