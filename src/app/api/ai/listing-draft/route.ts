@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getAiListingProvider } from '@/lib/ai';
 import { getUserOrNull } from '@/lib/auth/session';
+import { RATE_LIMITED_MESSAGE, RATE_LIMITS, consumeRateLimit } from '@/lib/rate-limit';
 import { createPublicSupabase } from '@/lib/supabase/public';
 import { tags } from '@/lib/cache/tags';
 
@@ -19,16 +20,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'צריך להתחבר' }, { status: 401 });
   }
 
+  // Authentication alone is not a budget: one signed-in account can still
+  // drain a metered upstream. Limited per user, before the body is even read.
+  const limit = await consumeRateLimit(RATE_LIMITS.aiDraft, user.id);
+  if (!limit.allowed) {
+    return NextResponse.json({ error: RATE_LIMITED_MESSAGE }, { status: 429 });
+  }
+
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 });
   }
 
   const supabase = createPublicSupabase({ tags: [tags.categories, tags.brands] });
-  const [{ data: categories }, { data: brands }] = await Promise.all([
-    supabase.from('categories').select('slug, name_he').order('sort'),
-    supabase.from('brands').select('name').order('sort'),
-  ]);
+  const [{ data: categories, error: categoriesError }, { data: brands, error: brandsError }] =
+    await Promise.all([
+      supabase.from('categories').select('slug, name_he').order('sort'),
+      supabase.from('brands').select('name').order('sort'),
+    ]);
+  if (categoriesError) throw categoriesError;
+  if (brandsError) throw brandsError;
 
   try {
     const draft = await getAiListingProvider().draftFromPhotos({

@@ -3,6 +3,7 @@
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { getUserOrNull } from '@/lib/auth/session';
+import { RATE_LIMITED_MESSAGE, RATE_LIMITS, consumeRateLimit } from '@/lib/rate-limit';
 import { buildSlug } from '@/lib/seo/slug';
 import { listingDraftSchema, fieldErrors } from '@/lib/validation/listing';
 import { invalidateFromAction } from '@/lib/cache/invalidate';
@@ -18,6 +19,9 @@ export type SubmitResult =
 export async function submitListing(raw: unknown): Promise<SubmitResult> {
   const user = await getUserOrNull();
   if (!user) return { ok: false, error: 'צריך להתחבר כדי לפרסם פריט' };
+
+  const limit = await consumeRateLimit(RATE_LIMITS.listingSubmit, user.id);
+  if (!limit.allowed) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const parsed = listingDraftSchema.safeParse(raw);
   if (!parsed.success) {

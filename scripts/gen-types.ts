@@ -239,9 +239,18 @@ ${renderRow(cols)}
       join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
        and p.prokind = 'f'
-       and p.proname in ('transition_order', 'transition_listing', 'create_order',
-                         'record_order_event', 'release_listing_for_order',
-                         'mark_listing_sold_for_order')
+       -- Trigger functions are never callable over RPC.
+       and p.prorettype <> 'trigger'::regtype
+       -- Whatever service_role may execute is exactly what the service client
+       -- can call, so the type surface follows the grants rather than a
+       -- hand-maintained list that silently omits every function added later.
+       and has_function_privilege('service_role', p.oid, 'EXECUTE')
+       -- pgcrypto and friends install dozens of functions into public; they
+       -- are the extension's API, not ours.
+       and not exists (
+         select 1 from pg_depend d
+          where d.objid = p.oid and d.deptype = 'e'
+       )
      order by p.proname
   `);
 

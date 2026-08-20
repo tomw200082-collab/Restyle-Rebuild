@@ -976,6 +976,27 @@ export type Database = {
           }
         ]
       }
+      rate_limits: {
+        Row: {
+          bucket: string
+          subject: string
+          window_start: string
+          count: number
+        }
+        Insert: {
+          bucket: string
+          subject: string
+          window_start: string
+          count?: number
+        }
+        Update: {
+          bucket?: string
+          subject?: string
+          window_start?: string
+          count?: number
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           id: string
@@ -1089,6 +1110,18 @@ export type Database = {
       }
     }
     Functions: {
+      consume_rate_limit: {
+        Args: {
+          p_bucket?: string | null
+          p_subject?: string | null
+          p_limit?: number | null
+          p_window_seconds?: number | null
+          allowed?: string | null
+          remaining?: string | null
+          resets_at?: string | null
+        }
+        Returns: unknown
+      }
       create_order: {
         Args: {
           p_listing_id?: string | null
@@ -1117,6 +1150,12 @@ export type Database = {
           p_actor?: string | null
         }
         Returns: undefined
+      }
+      prune_rate_limits: {
+        Args: {
+          p_older_than?: unknown | null
+        }
+        Returns: number
       }
       record_order_event: {
         Args: {

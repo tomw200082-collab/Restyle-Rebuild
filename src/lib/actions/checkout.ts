@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getUserOrNull } from '@/lib/auth/session';
+import { RATE_LIMITED_MESSAGE, RATE_LIMITS, consumeRateLimit } from '@/lib/rate-limit';
 import { getSiteConfig, getDeliveryZones, zoneLookupFrom } from '@/lib/pricing/config';
 import { computeOrderPricing, OutOfServiceAreaError } from '@/lib/pricing/engine';
 import { getPaymentProvider } from '@/lib/payments';
@@ -41,6 +42,9 @@ export type CheckoutResult = { ok: false; error: string };
 export async function startCheckout(raw: unknown): Promise<CheckoutResult> {
   const user = await getUserOrNull();
   if (!user) return { ok: false, error: 'צריך להתחבר כדי לרכוש' };
+
+  const limit = await consumeRateLimit(RATE_LIMITS.checkout, user.id);
+  if (!limit.allowed) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const parsed = checkoutSchema.safeParse(raw);
   if (!parsed.success) {

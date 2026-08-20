@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { getUserOrNull } from '@/lib/auth/session';
+import { RATE_LIMITED_MESSAGE, RATE_LIMITS, consumeRateLimit } from '@/lib/rate-limit';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { transitionOrder } from '@/lib/db/orders';
 import { getNotificationProvider } from '@/lib/notifications';
@@ -23,6 +24,9 @@ const schema = z.object({
 export async function openDispute(raw: unknown): Promise<DisputeResult> {
   const user = await getUserOrNull();
   if (!user) return { ok: false, error: 'צריך להתחבר' };
+
+  const limit = await consumeRateLimit(RATE_LIMITS.dispute, user.id);
+  if (!limit.allowed) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {

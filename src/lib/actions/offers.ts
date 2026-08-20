@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { getUserOrNull } from '@/lib/auth/session';
+import { RATE_LIMITED_MESSAGE, RATE_LIMITS, consumeRateLimit } from '@/lib/rate-limit';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { getSiteConfig } from '@/lib/pricing/config';
 import { minimumOfferAgorot } from '@/lib/pricing/engine';
@@ -27,6 +28,9 @@ const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000)
 export async function submitOffer(raw: unknown): Promise<OfferResult> {
   const user = await getUserOrNull();
   if (!user) return { ok: false, error: 'צריך להתחבר כדי להגיש הצעה' };
+
+  const limit = await consumeRateLimit(RATE_LIMITS.offer, user.id);
+  if (!limit.allowed) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const parsed = submitSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: 'הזינו סכום תקין' };

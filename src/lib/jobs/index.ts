@@ -17,7 +17,8 @@ export type JobName =
   | 'abandoned-checkout'
   | 'offer-expiry'
   | 'protection-window'
-  | 'listing-expiry';
+  | 'listing-expiry'
+  | 'housekeeping';
 
 export const JOB_NAMES: JobName[] = [
   'seller-timeout',
@@ -26,6 +27,7 @@ export const JOB_NAMES: JobName[] = [
   'offer-expiry',
   'protection-window',
   'listing-expiry',
+  'housekeeping',
 ];
 
 export type JobResult = { job: JobName; processed: number; details?: string[] };
@@ -280,6 +282,23 @@ async function listingExpiry(now: Date): Promise<JobResult> {
   return { job: 'listing-expiry', processed: listings?.length ?? 0 };
 }
 
+/**
+ * Bounded-growth tables that nothing reads once they are old.
+ *
+ * Rate-limit windows accumulate a row per subject per window forever
+ * otherwise — a table that only ever grows, on the hot path of every limited
+ * action. Pruned on a schedule rather than by trigger, so a traffic burst never
+ * pays for the cleanup.
+ */
+async function housekeeping(): Promise<JobResult> {
+  const service = createServiceSupabase();
+
+  const { data, error } = await service.rpc('prune_rate_limits', { p_older_than: '2 days' });
+  if (error) throw error;
+
+  return { job: 'housekeeping', processed: typeof data === 'number' ? data : 0 };
+}
+
 /** `now` is injectable so the timing logic is unit-testable without waiting. */
 export async function runJob(job: JobName, now: Date = new Date()): Promise<JobResult> {
   switch (job) {
@@ -295,5 +314,7 @@ export async function runJob(job: JobName, now: Date = new Date()): Promise<JobR
       return protectionWindow(now);
     case 'listing-expiry':
       return listingExpiry(now);
+    case 'housekeeping':
+      return housekeeping();
   }
 }
