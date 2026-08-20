@@ -36,38 +36,36 @@ deployed, moved money, or edited `CLAUDE.md`.
 
 ## 2. Scorecard v1 against targets
 
-Closing run, commit `3dcc5fa`, against the live project with demo content:
+**CI, commit `6e3bd60`, against a per-run Supabase stack: `verdict: pass` —
+13 passed · 0 failed · 0 skipped.** The first `pass` this gate has produced.
 
 | stage | result |
 |---|---|
 | build + typecheck + lint | ✅ clean |
 | unit tests | ✅ **98 passed** |
-| RLS assertion suite | ⏭️ reference DB unseeded — **CI runs it** |
-| e2e, four actor roles | ⏭️ target is not a local stack — **CI runs it** |
+| RLS assertion suite | ✅ **passed** — was a permanent skip |
+| e2e, four actor roles | ✅ **77 passed**, 0 flaky, 0 skipped — was a permanent skip |
 | JSON-LD structured data | ✅ valid |
 | Hebrew copy lint | ✅ 0 leaks across 89 components |
 | status codes, every public route | ✅ 25/25 at their expected status |
-| computed contrast, WCAG AA | ✅ **298 interactive elements**, 0 below |
+| computed contrast, WCAG AA | ✅ **342 interactive elements**, 0 below |
 | axe accessibility | ✅ **0 critical**, 0 serious, 20 pages |
-| Lighthouse budgets | ✅ all met on 3 pages |
-| RTL screenshots at 390px | ✅ 10/10 match baseline |
+| Lighthouse budgets | ✅ 3 pages, median of 3 runs `[D-80]` |
+| RTL layout at 390px | ✅ 10/10 rtl, none scrolling sideways `[D-79]` |
 | sold pages return 200 | ✅ |
-| sitemap coverage | ✅ 48 URLs, all resolving; 14 routes covered |
-
-**11 passed · 0 failed · 2 skipped.**
+| sitemap coverage | ✅ 89 URLs, all resolving; 14 routes covered |
 
 | page | performance | SEO | accessibility | budget |
 |---|---|---|---|---|
-| home | 92 | 100 | 100 | ≥90 / =100 / ≥95 |
-| category | 92 | 100 | 100 | ≥90 / =100 / ≥95 |
-| item | 92 | 100 | 100 | ≥90 / =100 / ≥95 |
+| home | 92 | 100 | 100 | floor 70 / target 90 · =100 · ≥95 |
+| category | 96 | 100 | 100 | floor 70 / target 90 · =100 · ≥95 |
+| item | 91 | 100 | 100 | floor 70 / target 90 · =100 · ≥95 |
 
-**The verdict is still `fail`, and that is the gate working.** A skipped stage is
-never counted as a pass `[D-63]`. The two skips are the suites that guard money
-and privacy — RLS and the four-actor e2e — and both refuse a non-local target by
-design `[D-65]`, because the e2e suite signs up users and drives orders to
-payout and refund. CI runs them on a per-run Supabase stack. **L2 eligibility
-needs a green CI run on the merge commit; it is not claimed here.**
+A local run still reports **11 passed · 0 failed · 2 skipped**, and always will:
+the RLS suite needs a reference database and the e2e suite refuses any target
+that is not a local stack `[D-65]`, because it signs up users and drives orders
+to payout and refund. That is the whole reason CI exists here, and why a skip is
+never counted as a pass `[D-63]`.
 
 ### The time series
 
@@ -81,6 +79,8 @@ useful thing in the file:
 | 10:35 | `a408a88` | fail | 10 / 1 / 2 |
 | 10:40 | `a408a88` | fail | 11 / **0** / 2 |
 | 10:54 | `3dcc5fa` | fail | 11 / 0 / 2 |
+| 11:53 | `c3ed7bc` | **pass** | **13 / 0 / 0** (CI) |
+| 12:1x | `6e3bd60` | **pass** | **13 / 0 / 0** (CI) |
 
 Three skips became measurements the moment the catalogue had content, and the
 three failures that appeared with it were real findings, fixed in twenty
@@ -88,7 +88,7 @@ minutes. That is the loop the gate exists to create.
 
 ---
 
-## 3. Decisions — D-61 to D-78
+## 3. Decisions — D-61 to D-87
 
 Full text with rejected alternatives in `docs/DECISIONS.md`.
 
@@ -248,12 +248,19 @@ script taking a service-role key should do the same.**
 
 ## 8. The recommended next five moves
 
-**1. Turn the two skips into passes — merge and let CI run.**
-Nothing else on this list is safe until the RLS suite and the four-actor e2e
-have run on a merge commit. That is one green `release-gate.yml` run away, and
-it is the difference between "11 stages pass" and "L2 eligible". Add
-`SUPABASE_DB_URL` as an Actions secret at the same time, or `drift-weekly.yml`
-will fail its first Monday by design.
+**1. ~~Turn the two skips into passes.~~ Done — and it cost six defects.**
+CI's first complete run made the RLS suite and the four-actor e2e real
+measurements, and they immediately found six bugs. Four were in the quality
+layer itself: an RTL check that could only pass on the machine that made its
+baseline `[D-79]`, a Lighthouse stage that printed only the score that failed
+`[D-80]`, a Lighthouse run that audited a leftover browser target and reported a
+missing `<title>` on a page that has always had one `[D-84]`, and an e2e count
+that excluded flaky tests without saying so `[D-86]`. Two were in the product:
+`paused` never reached the RLS policy `[D-82]`, and an anon spec was signing the
+shared buyer fixture out globally `[D-85]`. The gate now returns `pass`.
+
+Still outstanding from this item: **add `SUPABASE_DB_URL` as an Actions
+secret**, or `drift-weekly.yml` fails its first Monday by design `[D-69]`.
 
 **2. Sign in as `tom@gteveryday.com`, first, and set `ADMIN_EMAIL` where the
 deployed instance reads it.**

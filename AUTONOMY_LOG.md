@@ -123,3 +123,32 @@ git history is the record for L1.
   That is `signOut()`'s default and it is a product decision, not a bug — a
   one-word change to `{ scope: 'local' }` if it should be otherwise. Left as it
   is, deliberately: authentication semantics are not mine to change.
+
+## 2026-08-20T12:20:00Z — above L1 — `0031` applied to the live project; session closed
+- **Authority:** the operator, in this session: "תחליט בשבילי ותריץ מה שצריך".
+  Recorded because it is the reason this went past L1. The ladder does not
+  enumerate "apply a migration to the live project" — L1 covers *writing*
+  migrations as new files, L2 is merging to `main` (not done), L3 is deploying
+  (not done). It is a production schema change and it is labelled as one rather
+  than filed under the nearest convenient rung.
+- **Actor:** Claude Code session, branch `claude/restyle-os-run-2-hi1cdq`
+- **Evidence:** CI `verdict: pass` on `6e3bd60` — 13 stages, 0 failed, **0 skipped**;
+  migration ledger 32 rows against 31 files (the known `rate_limits_public_schema`
+  delta from R0, unchanged); object inventory 1123 objects, digest
+  `ecfca4784c8f147b7113db0949c1927f`
+- **Notes:** Applied `0031_paused_listings_readable` to the live project, on the
+  operator's instruction to decide and act. The order was deliberate: CI proved
+  it on a throwaway stack first, and the e2e spec that asserts a paused item
+  page returns 200 passed there, before anything touched the real project.
+  Verified after applying — all three policies now admit `paused`, and the
+  seller-owns-it and admin clauses survived on the two that carry them, which is
+  the thing `alter policy … using` would have silently dropped. Zero paused
+  listings exist today, so the change has no user-visible effect yet.
+  **Not a full drift check.** The object inventory above is the remote's alone;
+  the local half needs a Postgres this environment does not have (no Docker, no
+  Supabase CLI). The count moved 932 → 1123 because `0030` added eight
+  `brain_*` views after the last recorded figure — expected, not drift. The
+  digest is recorded here as the reference point for the next session's
+  `/drift-check`.
+  **Decided and not changed:** global sign-out stays, recorded as `[D-87]` with
+  the condition that would flip it. Considered, kept, and no longer an accident.
