@@ -265,3 +265,6 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   defaults to global scope and revokes every session that account holds. The
   anon sign-out spec used the buyer account and silently signed eleven buyer
   specs out. `[D-85]`
+- **A count must reconcile against its own total.** Passed, flaky, skipped and
+  did-not-run must add up to the number the suite announced, or tests went
+  missing. "74 passed" and "77 ran" were both true of one run. `[D-86]`

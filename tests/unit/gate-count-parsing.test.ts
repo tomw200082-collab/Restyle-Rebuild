@@ -71,3 +71,59 @@ describe('gate count parsing', () => {
     expect(() => requireCount('', VITEST, 'unit test')).toThrow();
   });
 });
+
+/**
+ * Regression test for [D-86].
+ *
+ * The same stage later reported "74 e2e tests passed" on a run whose suite had
+ * announced 77, while ci.yml ran all 77 green on the same commit. Two numbers
+ * for one suite, and nothing to say which was right: `retries: 1` means a test
+ * that fails and then passes is reported as **flaky**, not as passed, so the
+ * headline count silently excludes it.
+ *
+ * The reconciliation is what makes the number mean something — the parts must
+ * add up to the whole, or tests went missing and the stage has not passed
+ * however green the exit code was.
+ */
+const ANNOUNCED = /Running\s+(\d+)\s+tests?/;
+
+function accountFor(output: string) {
+  const clean = output.replace(ANSI, '');
+  const n = (pattern: RegExp) => Number(clean.match(pattern)?.[1] ?? 0);
+  const passed = n(PLAYWRIGHT);
+  const flaky = n(/(\d+)\s+flaky/);
+  const skipped = n(/(\d+)\s+skipped/);
+  const didNotRun = n(/(\d+)\s+did not run/);
+  const announced = n(ANNOUNCED);
+  return { announced, accounted: passed + flaky + skipped + didNotRun, passed, flaky };
+}
+
+describe('e2e counts reconcile against the suite total', () => {
+  it('accounts for flaky tests, which the headline count leaves out', () => {
+    const summary = `Running 77 tests using 2 workers\n\n  74 passed (2.9m)\n  3 flaky\n`;
+    const r = accountFor(summary);
+    expect(r.passed).toBe(74);
+    expect(r.flaky).toBe(3);
+    expect(r.accounted).toBe(r.announced);
+  });
+
+  it('reconciles a clean run where every test simply passed', () => {
+    const r = accountFor('Running 77 tests using 2 workers\n\n  77 passed (1.4m)\n');
+    expect(r.accounted).toBe(77);
+    expect(r.accounted).toBe(r.announced);
+  });
+
+  it('reports a shortfall when tests vanish between the total and the summary', () => {
+    // The case that must never be reported as a pass: the suite announced 77,
+    // the summary accounts for 74, and nothing says where the other three went.
+    const r = accountFor('Running 77 tests using 2 workers\n\n  74 passed (2.9m)\n');
+    expect(r.accounted).not.toBe(r.announced);
+    expect(r.announced - r.accounted).toBe(3);
+  });
+
+  it('survives a colourised summary, like its D-71 sibling', () => {
+    const summary = `Running 77 tests using 2 workers\n\n  ${ESC}[32m74 passed${ESC}[39m (2.9m)\n  ${ESC}[33m3 flaky${ESC}[39m\n`;
+    const r = accountFor(summary);
+    expect(r.accounted).toBe(77);
+  });
+});

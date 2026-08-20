@@ -41,6 +41,10 @@ function head(text: string, lines = 20): string {
  */
 const ANSI = /\u001b\[[0-9;]*m/g;
 
+/** CI runners colourise their summaries, and the escape codes land between the
+ *  label and the number. [D-71] */
+const stripAnsi = (output: string) => output.replace(ANSI, '');
+
 /**
  * Parses a count out of a runner's summary, and **throws** when it cannot.
  *
@@ -51,7 +55,7 @@ const ANSI = /\u001b\[[0-9;]*m/g;
  * anything, and a stage that did not measure anything has not passed.
  */
 function requireCount(output: string, pattern: RegExp, what: string): number {
-  const match = pattern.exec(output.replace(ANSI, ''));
+  const match = pattern.exec(stripAnsi(output));
   const count = Number(match?.[1]);
   if (!Number.isFinite(count) || count <= 0) {
     throw new Error(
@@ -223,8 +227,52 @@ export const e2eStage: Stage = {
       const { stdout, stderr } = await npmRun('test:e2e');
       const out = stdout + stderr;
       const evidence = await writeEvidence(ctx, 'e2e.log', out);
+      // Every test is accounted for, not just the passing ones.
+      //
+      // This stage reported "74 e2e tests passed" on a run where the suite
+      // announced 77 and ci.yml ran all 77 green — two numbers for one suite on
+      // one commit, and no way to tell whether three tests had been retried,
+      // skipped, or silently dropped. `retries: 1` in CI means a test that
+      // fails and then passes is reported as *flaky*, not as passed, so the
+      // headline count quietly excludes it. [D-86]
+      //
+      // Reconciling against the suite's own "Running N tests" is what makes the
+      // number mean something: if the parts do not add up to the whole, tests
+      // went missing and that is a failure, however green the exit code was.
       const passed = requireCount(out, /(\d+)\s+passed/, 'e2e test');
-      return { status: 'pass', detail: `${passed} e2e tests passed`, metrics: { tests: passed }, evidence: [evidence] };
+      const optional = (pattern: RegExp) => Number(stripAnsi(out).match(pattern)?.[1] ?? 0);
+      const flaky = optional(/(\d+)\s+flaky/);
+      const skipped = optional(/(\d+)\s+skipped/);
+      const didNotRun = optional(/(\d+)\s+did not run/);
+      const interrupted = optional(/(\d+)\s+interrupted/);
+      const announced = optional(/Running\s+(\d+)\s+tests?/);
+      const accounted = passed + flaky + skipped + didNotRun + interrupted;
+
+      if (announced && accounted !== announced) {
+        return {
+          status: 'fail',
+          detail: `${announced} e2e tests announced, ${accounted} accounted for`,
+          failures: [
+            `passed ${passed}, flaky ${flaky}, skipped ${skipped}, did-not-run ${didNotRun}, ` +
+              `interrupted ${interrupted} — ${announced - accounted} unaccounted for`,
+          ],
+          metrics: { tests: announced, passed, flaky, skipped },
+          evidence: [evidence],
+        };
+      }
+
+      const notes = [
+        flaky ? `${flaky} flaky` : '',
+        skipped ? `${skipped} skipped` : '',
+        didNotRun ? `${didNotRun} did not run` : '',
+      ].filter(Boolean);
+
+      return {
+        status: 'pass',
+        detail: `${passed} e2e tests passed${notes.length ? ` (${notes.join(', ')})` : ''}`,
+        metrics: { tests: announced || passed, passed, flaky, skipped },
+        evidence: [evidence],
+      };
     } catch (error) {
       const err = error as { stdout?: string; stderr?: string; message?: string };
       const out = `${err.stdout ?? ''}\n${err.stderr ?? ''}`.trim() || (err.message ?? '');
