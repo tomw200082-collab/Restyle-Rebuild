@@ -27,7 +27,27 @@ import {
 
 const OTHER_SELLER = '00000000-0000-4000-8000-000000000004';
 
+/**
+ * This file runs in its own project, after every other one, because the cron it
+ * drives pauses every active listing `SELLER_ID` has — and that is the seller
+ * `createListing` gives every fixture in the suite. See `playwright.config.ts`.
+ * [D-95]
+ */
 test.afterAll(async () => {
+  // Hand the catalogue back the way it was found. The gate's later stages —
+  // sitemap coverage, the Lighthouse item budget, the sold-200 check — read the
+  // live catalogue, and leaving half of it paused makes them measure a shape no
+  // deploy will ever have.
+  await sql(
+    `update public.listings set status = 'active'
+      where status = 'paused' and seller_id in ($1, $2)`,
+    [SELLER_ID, OTHER_SELLER],
+  );
+  await sql(
+    `update public.profiles set expired_confirmations = 0, listings_paused_at = null
+      where id in ($1, $2)`,
+    [SELLER_ID, OTHER_SELLER],
+  );
   await closeDb();
 });
 
@@ -90,7 +110,14 @@ async function expiredConfirmations(sellerId: string): Promise<number> {
 test.beforeEach(async () => {
   // Consecutive means consecutive. Each case starts from a clean counter, or it
   // is measuring the previous test rather than its own.
-  await sql(`update public.profiles set expired_confirmations = 0, listings_paused_at = null`);
+  // Scoped to the two sellers this file owns. Unqualified, it reset every
+  // profile in the database, including ones another spec was mid-way through
+  // asserting on. [D-95]
+  await sql(
+    `update public.profiles set expired_confirmations = 0, listings_paused_at = null
+      where id in ($1, $2)`,
+    [SELLER_ID, OTHER_SELLER],
+  );
   await sql(
     `update public.listings set status = 'active'
       where status = 'paused' and seller_id in ($1, $2)`,

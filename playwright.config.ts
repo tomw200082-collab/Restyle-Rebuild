@@ -84,6 +84,34 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], channel: undefined, storageState: '.auth/admin.json' },
       dependencies: ['setup'],
       testMatch: /\.admin\.spec\.ts/,
+      // Everything except the one spec that pauses a shared seller's whole
+      // catalogue. See below. [D-95]
+      testIgnore: /seller-pause\.admin\.spec\.ts/,
+    },
+    /**
+     * Last, and on its own.
+     *
+     * `seller-pause` drives the seller-timeout cron, and `pause_seller_listings`
+     * pauses **every** active listing the seller has — that is the feature, not
+     * a bug in it `[D-74]`. But the seller it pauses is `SELLER_ID`, the default
+     * that `createListing` gives every fixture in the suite, so while this file
+     * runs, any other spec's freshly created listing can be paused underneath
+     * it. That is exactly what happened: the lifecycle spec approved a listing,
+     * read it back and got `paused`, on a run where the two files happened to
+     * share the two workers. Intermittent, and invisible until the assertion
+     * printed the received value.
+     *
+     * Depending on the other four projects makes Playwright finish all of them
+     * before this starts, so nothing it pauses belongs to a test still running.
+     * `fullyParallel: false` keeps its own seven tests in one worker too — they
+     * share one counter on one profile, and `beforeEach` resets it.
+     */
+    {
+      name: 'admin-destructive',
+      use: { ...devices['Desktop Chrome'], channel: undefined, storageState: '.auth/admin.json' },
+      dependencies: ['anon', 'buyer', 'seller', 'admin'],
+      testMatch: /seller-pause\.admin\.spec\.ts/,
+      fullyParallel: false,
     },
   ],
 
