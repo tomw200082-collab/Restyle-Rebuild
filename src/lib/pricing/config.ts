@@ -10,6 +10,7 @@ const DEFAULTS: PricingConfig = {
   floor_surcharge_agorot: 5000,
   floor_surcharge_min_floor: 3,
   disassembly_surcharge_agorot: 10000,
+  bulky_surcharge_agorot: 8000,
   cancellation_fee_agorot: 5000,
   offer_min_pct: 60,
   min_price_agorot: 5000,
@@ -23,6 +24,7 @@ export type SiteConfig = PricingConfig & {
   offer_checkout_hours: number;
   listing_ttl_days: number;
   resale_window_days: number;
+  seller_pause_after_expired: number;
   min_photos: number;
   max_photos: number;
   capture_mode: 'immediate' | 'authorize_capture';
@@ -37,6 +39,7 @@ const CONFIG_DEFAULTS: SiteConfig = {
   offer_checkout_hours: 24,
   listing_ttl_days: 90,
   resale_window_days: 7,
+  seller_pause_after_expired: 2,
   min_photos: 3,
   max_photos: 10,
   capture_mode: 'immediate',
@@ -64,6 +67,7 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     floor_surcharge_agorot: num('floor_surcharge_agorot', CONFIG_DEFAULTS.floor_surcharge_agorot),
     floor_surcharge_min_floor: num('floor_surcharge_min_floor', CONFIG_DEFAULTS.floor_surcharge_min_floor),
     disassembly_surcharge_agorot: num('disassembly_surcharge_agorot', CONFIG_DEFAULTS.disassembly_surcharge_agorot),
+    bulky_surcharge_agorot: num('bulky_surcharge_agorot', CONFIG_DEFAULTS.bulky_surcharge_agorot),
     cancellation_fee_agorot: num('cancellation_fee_agorot', CONFIG_DEFAULTS.cancellation_fee_agorot),
     offer_min_pct: num('offer_min_pct', CONFIG_DEFAULTS.offer_min_pct),
     min_price_agorot: num('min_price_agorot', CONFIG_DEFAULTS.min_price_agorot),
@@ -74,6 +78,7 @@ export async function getSiteConfig(): Promise<SiteConfig> {
     offer_checkout_hours: num('offer_checkout_hours', CONFIG_DEFAULTS.offer_checkout_hours),
     listing_ttl_days: num('listing_ttl_days', CONFIG_DEFAULTS.listing_ttl_days),
     resale_window_days: num('resale_window_days', CONFIG_DEFAULTS.resale_window_days),
+    seller_pause_after_expired: num('seller_pause_after_expired', CONFIG_DEFAULTS.seller_pause_after_expired),
     min_photos: num('min_photos', CONFIG_DEFAULTS.min_photos),
     max_photos: num('max_photos', CONFIG_DEFAULTS.max_photos),
     capture_mode: map.get('capture_mode') === 'authorize_capture' ? 'authorize_capture' : 'immediate',

@@ -76,6 +76,18 @@ export async function createListing(
     sellerId: string;
     allowSelfPickup: boolean;
     status: 'active' | 'pending_review';
+    /**
+     * Dimensions decide `size_class`, and `size_class` decides whether the
+     * order carries the ₪80 bulky surcharge. The default is deliberately a
+     * *standard* item (0.42 m³, longest edge 100 cm) so a spec about the state
+     * machine is not also a spec about the fee table — the arithmetic in a
+     * lifecycle assertion stays `item + zone` and says what it means.
+     *
+     * Pass a sofa's dimensions to exercise the surcharge. [D-72]
+     */
+    widthCm: number;
+    depthCm: number;
+    heightCm: number;
   }> = {},
 ) {
   const id = randomUUID();
@@ -94,7 +106,7 @@ export async function createListing(
        pickup_city, pickup_street, pickup_floor, pickup_has_elevator,
        needs_disassembly, allow_self_pickup, published_at, expires_at
      ) values ($1, $2, $3, $4, 'פריט שנוצר על ידי מערכת הבדיקות', $5, 'good',
-       200, 90, 80, $6, $12::text::public.listing_status, $7, 'רחוב הבדיקה 1', $8, $9, $10, $11,
+       $13, $14, $15, $6, $12::text::public.listing_status, $7, 'רחוב הבדיקה 1', $8, $9, $10, $11,
        case when $12::text = 'active' then now() end,
        case when $12::text = 'active' then now() + interval '90 days' end)
      returning id, slug, title`,
@@ -111,6 +123,11 @@ export async function createListing(
       overrides.disassembly ?? false,
       overrides.allowSelfPickup ?? true,
       overrides.status ?? 'active',
+      // 0.42 m³, longest edge 100 cm — `standard`, so the default fixture
+      // carries no bulky surcharge and a money assertion stays `item + zone`.
+      overrides.widthCm ?? 100,
+      overrides.depthCm ?? 60,
+      overrides.heightCm ?? 70,
     ],
   );
 

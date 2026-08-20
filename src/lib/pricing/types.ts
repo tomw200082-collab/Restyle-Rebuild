@@ -7,10 +7,19 @@ export type PricingConfig = {
   floor_surcharge_agorot: number;
   floor_surcharge_min_floor: number;
   disassembly_surcharge_agorot: number;
+  bulky_surcharge_agorot: number;
   cancellation_fee_agorot: number;
   offer_min_pct: number;
   min_price_agorot: number;
 };
+
+/**
+ * Derived in the database from the dimensions every listing already carries.
+ * The classifier is `public.classify_size` — one implementation, so the fee
+ * engine, the KPI views and the review queue cannot disagree about what is
+ * bulky. [D-72]
+ */
+export type SizeClass = Enums<'listing_size_class'>;
 
 export type PricingListing = {
   price_agorot: number;
@@ -18,6 +27,7 @@ export type PricingListing = {
   pickup_floor: number;
   pickup_has_elevator: boolean;
   needs_disassembly: boolean;
+  size_class: SizeClass;
   /** Zero-commission resale honours the published promise. [D-41] */
   commission_pct_override?: number | null;
 };
@@ -31,7 +41,7 @@ export type DeliveryDetails =
       hasElevator: boolean;
     };
 
-export type SurchargeCode = 'floor_pickup' | 'floor_dropoff' | 'disassembly';
+export type SurchargeCode = 'floor_pickup' | 'floor_dropoff' | 'disassembly' | 'bulky';
 
 export type Surcharge = {
   code: SurchargeCode;

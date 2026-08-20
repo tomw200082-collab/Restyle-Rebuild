@@ -10,6 +10,12 @@ export default defineConfig({
     globals: false,
   },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Lets unit tests import server modules — the kill switch and the fee
+      // engine's config both carry `server-only`, which throws outside a
+      // react-server resolution. See tests/stubs/server-only.ts.
+      'server-only': fileURLToPath(new URL('./tests/stubs/server-only.ts', import.meta.url)),
+    },
   },
 });

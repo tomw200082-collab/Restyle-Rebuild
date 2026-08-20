@@ -9,7 +9,7 @@ import { computeOrderPricing, OutOfServiceAreaError } from '@/lib/pricing/engine
 import { zoneLookupFrom, type ZoneRow } from '@/lib/pricing/config.shared';
 import { coverPhoto, photoUrl } from '@/lib/storage';
 import { startCheckout } from '@/lib/actions/checkout';
-import type { PricingConfig } from '@/lib/pricing/types';
+import type { PricingConfig, SizeClass } from '@/lib/pricing/types';
 import { cn } from '@/lib/utils';
 
 type Listing = {
@@ -20,6 +20,7 @@ type Listing = {
   pickup_floor: number;
   pickup_has_elevator: boolean;
   needs_disassembly: boolean;
+  size_class: SizeClass;
   allow_self_pickup: boolean;
   commission_pct_override: number | null;
   listing_photos: Array<{ storage_path: string; alt_text: string | null; sort: number }>;

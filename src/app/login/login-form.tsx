@@ -100,7 +100,10 @@ export function LoginForm({ next }: { next: string }) {
             // Email is LTR even inside an RTL page, or the @ lands visually wrong.
             dir="ltr"
             className="text-start"
-            placeholder="you@example.com"
+            // The field is LTR; the hint is still Hebrew. A Hebrew speaker
+            // reading "you@example.com" learns the shape of an address they
+            // already know — this says what to type here instead.
+            placeholder="הכתובת שלך"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />

@@ -26,7 +26,17 @@
     "lint:fix": "eslint . --fix",
     "verify:all": "npm run verify && npm run build && npm run test:e2e && npm run seo:validate",
     "seo:validate": "tsx scripts/validate-jsonld.ts",
-    "import:legacy": "tsx scripts/import-legacy.ts"
+    "import:legacy": "tsx scripts/import-legacy.ts",
+    "release-gate": "tsx scripts/release-gate.ts",
+    "gate": "npm run release-gate",
+    "gate:fast": "tsx scripts/release-gate.ts --fast",
+    "route-audit": "tsx scripts/route-audit.ts",
+    "drift-check": "tsx scripts/drift-check.ts",
+    "scorecard": "tsx scripts/scorecard-summary.ts",
+    "demo:seed": "tsx scripts/demo-content.ts",
+    "purge-demo": "tsx scripts/purge-demo.ts",
+    "brief": "tsx brain/daily-brief.ts",
+    "weekly": "tsx brain/weekly-report.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
@@ -54,6 +64,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",
@@ -64,6 +75,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.1",
     "jose": "^6.2.9",
+    "lighthouse": "^12.8.2",
     "pg": "^8.23.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",

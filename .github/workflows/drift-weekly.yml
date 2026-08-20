@@ -1,0 +1,156 @@
+name: drift-weekly
+
+# The repo=mirror discipline, on a schedule.
+#
+# "The migrations are applied, so the schema matches" is a belief. It was wrong
+# in a way that cost two manual audits: the same object graph behind a differing
+# migration ledger, and three function bodies that had lost their comments when
+# they were applied by hand. This job makes the answer a measurement that arrives
+# whether or not anyone thinks to ask.
+#
+# It compares 920-odd objects across `public` and `private` — including function
+# body hashes, policy expressions and the column-level grants where [D-44] and
+# [D-45] both lived, none of which a schema dump would show.
+
+on:
+  schedule:
+    # Mondays 05:00 UTC — 08:00 Israel in summer, 07:00 in winter. The report is
+    # waiting before the week starts rather than interrupting it.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    name: migrations vs live schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reference
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      REFERENCE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/reference
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Check the secret is configured
+        # Without it the job would "pass" by doing nothing, which is the silent
+        # green this whole repository is built to prevent.
+        run: |
+          if [ -z "${SUPABASE_DB_URL}" ]; then
+            echo "SUPABASE_DB_URL is not set. Add it in Settings → Secrets → Actions."
+            echo "Supabase → Project Settings → Database → Connection string (URI)."
+            exit 1
+          fi
+
+      - name: Drift check
+        id: drift
+        run: npm run drift-check
+        continue-on-error: true
+
+      - name: Report
+        run: |
+          if [ -f quality/drift-check.json ]; then
+            {
+              echo '## Schema drift'
+              echo
+              echo '```json'
+              cat quality/drift-check.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Open an issue on drift
+        if: steps.drift.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = {};
+            try { report = JSON.parse(fs.readFileSync('quality/drift-check.json', 'utf8')); } catch {}
+
+            const drifted = (report.drifted ?? []).join(', ') || 'unknown';
+            const title = `Schema drift: ${drifted}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'schema-drift',
+            });
+
+            const body = [
+              'The weekly drift check found a difference between `supabase/migrations` and the live schema.',
+              '',
+              `**Categories that differ:** ${drifted}`,
+              `**Objects compared:** ${report.objects ?? 'unknown'}`,
+              `**Repo digest:** \`${report.digest ?? '?'}\``,
+              `**Remote digest:** \`${report.remoteDigest ?? '?'}\``,
+              '',
+              '```json',
+              JSON.stringify(report.rows ?? [], null, 2),
+              '```',
+              '',
+              '### What to do',
+              '',
+              'Decide which side is right, per difference:',
+              '',
+              '- **Remote-only object** — usually a change applied by hand. Capture it as a new migration and prove the migration is a no-op against the remote before applying it anywhere else.',
+              '- **Repo-only object** — usually a migration that was never applied. Apply it, then re-run this check.',
+              '',
+              'Never "fix" drift by editing an applied migration. A correction is always a new migration (`CLAUDE.md` §4).',
+              '',
+              `[Run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+            ].join('\n');
+
+            if (existing.data.length) {
+              // One issue, updated — a new issue every Monday for the same
+              // unresolved drift is how a real signal becomes noise.
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body: `Still drifting as of ${new Date().toISOString()}.\n\n${body}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['schema-drift'],
+                body,
+              });
+            }
+
+      - name: Fail the run when drift was found
+        if: steps.drift.outcome == 'failure'
+        run: exit 1

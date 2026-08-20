@@ -128,3 +128,30 @@ Run through this on any new component before calling it done:
 8. Long Hebrew strings don't overflow — test with a 60-character title, since Hebrew has no obvious word-break points for the browser to exploit.
 9. Absolutely-positioned badges use `start-*`/`end-*`, not `left-*`/`right-*`.
 10. Loading skeletons match the real content's inline direction and width.
+
+## English does not leak into the UI
+
+The `hebrew-copy` gate stage scans every `.tsx` under `src/` for Latin text in
+JSX text nodes and in user-visible props (`placeholder`, `title`, `aria-label`,
+`alt`, `label`), and fails the gate on a leak.
+
+It found one on its first run: `placeholder="you@example.com"` on the login
+form's email field. The field is correctly `dir="ltr"` — an email address with
+the `@` laid out RTL is unreadable — but **the field's direction and the hint's
+language are separate decisions**. A Hebrew speaker reading `you@example.com`
+learns the shape of an address they already know; `הכתובת שלך` tells them what
+to type here.
+
+What the lint accepts, so the exceptions are predictable:
+
+- Any string containing Hebrew — mixed content like `משלוח עד הבית — IKEA` is
+  normal and correct.
+- Strings whose Latin words are all proper nouns or units: brands, `WhatsApp`,
+  `cm`, `ILS`.
+- Bare identifiers in JSX positions — those are components and types, not copy.
+
+And what it deliberately does not do: it never flags Hebrew appearing in code.
+That direction is caught by review, and `CLAUDE.md` §3.5 states the rule.
+
+**Write the Hebrew with the component, not after it.** Copy added later is copy
+written by an engineer, and it reads that way.

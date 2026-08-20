@@ -1,0 +1,29 @@
+# actionlint — recorded run
+
+shellcheck 0.9.0 enabled; pyflakes absent (no Python steps in these workflows).
+
+```
+$ actionlint -verbose
+verbose: Found total 0 errors in 0 ms for .github/workflows/claude.yml
+verbose: Found total 0 errors in 55 ms for .github/workflows/ci.yml
+verbose: Found total 0 errors in 72 ms for .github/workflows/drift-weekly.yml
+verbose: Found total 0 errors in 76 ms for .github/workflows/release-gate.yml
+verbose: Found 0 errors in 4 files
+exit 0
+```
+
+## Proof the linter detects real errors
+
+A deliberately broken workflow, fed on stdin:
+
+```
+<stdin>:5:14: label "ubuntu-lates" is unknown. available labels are …
+  |
+5 |     runs-on: ubuntu-lates
+  |              ^~~~~~~~~~~~
+<stdin>:7:24: property "nope" is not defined in object type {action: string; action_path: string; action_ref: string; action_repository: string; action_status: string; actor: string; actor_id: string; api_url: string; artifact_cache_size_limit: number; base_ref: string; env: string; event: object; event_name: string; event_path: string; graphql_url: string; head_ref: string; job: string; output: string; path: string; ref: string; ref_name: string; ref_protected: bool; ref_type: string; repository: string; repository_id: string; repository_owner: string; repository_owner_id: string; repository_visibility: string; repositoryurl: string; retention_days: number; run_attempt: string; run_id: string; run_number: string; secret_source: string; server_url: string; sha: string; state: string; step_summary: string; token: string; triggering_actor: string; workflow: string; workflow_ref: string; workflow_sha: string; workspace: string} [expression]
+  |
+7 |       - run: echo "${{ github.nope }}"
+  |                        ^~~~~~~~~~~
+exit 1
+```

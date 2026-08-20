@@ -32,6 +32,7 @@ const LISTING_TONE: Record<
   sold: 'ink',
   rejected: 'danger',
   expired: 'neutral',
+  paused: 'warning',
   removed: 'neutral',
 };
 

@@ -1,0 +1,60 @@
+name: claude
+
+# The @claude pull-request responder.
+#
+# SCAFFOLDED AND DISABLED. It does not run until the ANTHROPIC_API_KEY secret
+# exists, and the guard below is what keeps it disabled — not a commented-out
+# block, which is invisible to `actionlint` and rots without anyone noticing.
+# Activation steps are in docs/DEPLOYMENT.md.
+#
+# Read the permissions before enabling this. An agent that can push to a branch
+# and comment on a PR is an agent inside the L1 boundary; everything above L1
+# still requires the release gate and an AUTONOMY_LOG.md entry, and nothing here
+# changes that.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  respond:
+    name: respond to @claude
+    runs-on: ubuntu-latest
+    # Three conditions, all required:
+    #   1. someone actually wrote @claude;
+    #   2. the secret exists — without this the job starts and fails on every
+    #      unrelated comment in the repository;
+    #   3. the author can write to the repo, so a drive-by comment from a fork
+    #      cannot task an agent that holds `contents: write`.
+    if: |
+      contains(github.event.comment.body || github.event.review.body, '@claude')
+      && vars.CLAUDE_ENABLED == 'true'
+      && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association)
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The repository's own rules apply here exactly as they do in a local
+          # session. They are not repeated in this file, because a second copy
+          # of a policy is the drift class ADR-001 names.
+          claude_args: |
+            --append-system-prompt "Read CLAUDE.md, SPEC.md and EXECUTION_POLICY.md before acting. The active autonomy level is L1: branch, commit, and open a draft PR. Never merge, never deploy, never edit CLAUDE.md, and never run anything that moves real money. End every response with 'Next action: <the single next step>'."

@@ -1,0 +1,17 @@
+{
+  "home": {
+    "performance": 93,
+    "seo": 100,
+    "accessibility": 100
+  },
+  "category": {
+    "performance": 92,
+    "seo": 100,
+    "accessibility": 100
+  },
+  "item": {
+    "performance": 92,
+    "seo": 100,
+    "accessibility": 100
+  }
+}

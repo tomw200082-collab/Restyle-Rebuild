@@ -73,6 +73,12 @@ export async function confirmSale(raw: unknown): Promise<OrderActionResult> {
     proposed_windows: parsed.data.windows as unknown as Json,
   });
 
+  // The pause counter is *consecutive*. A seller who answers has, by answering,
+  // stopped being the problem the counter tracks — so it resets here rather
+  // than decaying, and a seller who missed one confirmation a year ago is never
+  // one expiry away from having their catalogue paused. [D-74]
+  await service.from('profiles').update({ expired_confirmations: 0 }).eq('id', user.id);
+
   await getNotificationProvider().send({
     template: 'buyer_order_confirmed',
     to: order.buyer_id,

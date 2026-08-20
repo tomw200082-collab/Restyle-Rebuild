@@ -10,6 +10,7 @@ import {
   transitionOrder,
 } from '@/lib/db/orders';
 import { getNotificationProvider } from '@/lib/notifications';
+import { killSwitchState } from '@/lib/ops/kill-switch';
 
 export type JobName =
   | 'seller-timeout'
@@ -30,7 +31,13 @@ export const JOB_NAMES: JobName[] = [
   'housekeeping',
 ];
 
-export type JobResult = { job: JobName; processed: number; details?: string[] };
+export type JobResult = {
+  job: JobName;
+  processed: number;
+  details?: string[];
+  /** Set when the kill switch stopped the job before it did any work. */
+  halted?: boolean;
+};
 
 /**
  * All jobs share three properties, and each exists because of a specific way
@@ -61,6 +68,7 @@ async function sellerTimeout(now: Date): Promise<JobResult> {
   if (ordersError) throw ordersError;
 
   const details: string[] = [];
+  const unresponsiveSellers = new Set<string>();
 
   for (const order of orders ?? []) {
     await transitionOrder(order.id, 'cancelled', null, 'seller_confirmation_timeout', {
@@ -113,10 +121,82 @@ async function sellerTimeout(now: Date): Promise<JobResult> {
       idempotencyKey: `seller_timeout_seller:${order.id}`,
     });
 
+    // The listing is the thing still making promises to buyers, so the listing
+    // is what stops. Counting per seller *after* the loop rather than inside it
+    // means a seller with three orders expiring in the same tick is counted
+    // once, not three times — and that is the difference between "stopped
+    // answering" and "was asleep for one evening". [D-74]
+    unresponsiveSellers.add(order.seller_id);
     details.push(order.id);
   }
 
+  const paused = await pauseUnresponsiveSellers(unresponsiveSellers, config, service);
+  if (paused.length) details.push(...paused);
+
   return { job: 'seller-timeout', processed: details.length, details };
+}
+
+/**
+ * After `seller_pause_after_expired` consecutive expiries, a seller's other
+ * active listings are paused.
+ *
+ * The counter is consecutive, not cumulative: a seller who missed one
+ * confirmation a year ago and has answered every one since is not a problem,
+ * and treating them like one is how a safety mechanism becomes a reason to stop
+ * selling here. `confirmOrder` resets it to zero.
+ *
+ * Set the threshold to 0 to disable the automation entirely.
+ */
+async function pauseUnresponsiveSellers(
+  sellerIds: Set<string>,
+  config: { seller_pause_after_expired: number },
+  service: ReturnType<typeof createServiceSupabase>,
+): Promise<string[]> {
+  if (!sellerIds.size || config.seller_pause_after_expired <= 0) return [];
+
+  const paused: string[] = [];
+
+  for (const sellerId of sellerIds) {
+    const { data: profile, error: profileError } = await service
+      .from('profiles')
+      .select('expired_confirmations')
+      .eq('id', sellerId)
+      .maybeSingle();
+    if (profileError) throw profileError;
+
+    const count = (profile?.expired_confirmations ?? 0) + 1;
+    const { error: bumpError } = await service
+      .from('profiles')
+      .update({ expired_confirmations: count })
+      .eq('id', sellerId);
+    if (bumpError) throw bumpError;
+
+    if (count < config.seller_pause_after_expired) continue;
+
+    // One SQL call: the pause and every audit row land in one transaction, and
+    // the admin console calls the same function, so an admin unpause and a
+    // seller-triggered one cannot diverge.
+    const { data: pausedCount, error: pauseError } = await service.rpc('pause_seller_listings', {
+      p_seller_id: sellerId,
+      p_reason: `seller_unresponsive:${count}_consecutive`,
+    });
+    if (pauseError) throw pauseError;
+
+    // Idempotent by construction: a seller with nothing left to pause is not
+    // emailed again on the next tick.
+    if (typeof pausedCount === 'number' && pausedCount > 0) {
+      await getNotificationProvider().send({
+        template: 'seller_listings_paused',
+        to: sellerId,
+        recipientRole: 'seller',
+        idempotencyKey: `seller_paused:${sellerId}:${count}`,
+        data: { count: String(count) },
+      });
+      paused.push(`paused ${pausedCount} listing(s) for seller ${sellerId}`);
+    }
+  }
+
+  return paused;
 }
 
 /**
@@ -301,6 +381,16 @@ async function housekeeping(): Promise<JobResult> {
 
 /** `now` is injectable so the timing logic is unit-testable without waiting. */
 export async function runJob(job: JobName, now: Date = new Date()): Promise<JobResult> {
+  // One guard, seven jobs. Every scheduled job routes through here, so the
+  // kill switch cannot be forgotten on the next one that gets added — a check
+  // per job would be seven places to forget it. It runs before any query,
+  // any transition and any refund: halting has to mean nothing happened.
+  // CLAUDE.md §6, EXECUTION_POLICY.md.
+  const kill = killSwitchState();
+  if (kill.active) {
+    return { job, processed: 0, halted: true, details: [`kill switch active (${kill.detail})`] };
+  }
+
   switch (job) {
     case 'seller-timeout':
       return sellerTimeout(now);

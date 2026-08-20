@@ -1,0 +1,118 @@
+name: release-gate
+
+# Pull requests targeting main. The full gate — every stage, including the
+# browser-heavy ones: computed contrast, axe, Lighthouse budgets and the RTL
+# visual diff.
+#
+# This is the only path to L2. A scorecard entry with `verdict: "pass"` is the
+# admission criterion for main, and a skipped stage is never a pass — so this
+# workflow exists to make the skips in a local run disappear, not to repeat what
+# ci.yml already proved.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write   # posts the verdict
+
+env:
+  NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3210
+  PAYMENT_PROVIDER: mock
+  EMAIL_PROVIDER: mock
+  AI_LISTING_ENABLED: 'false'
+  ADMIN_EMAIL: admin@restyle.test
+  CRON_SECRET: ci-only-not-a-real-secret-0000000000000000000000000000
+
+jobs:
+  gate:
+    name: full release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: supabase start
+        run: supabase start
+
+      - name: Export the local stack's credentials
+        run: |
+          supabase status -o env | while IFS='=' read -r key value; do
+            value="${value%\"}"; value="${value#\"}"
+            case "$key" in
+              API_URL)      echo "NEXT_PUBLIC_SUPABASE_URL=$value" >> "$GITHUB_ENV" ;;
+              ANON_KEY)     echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$value" >> "$GITHUB_ENV" ;;
+              SERVICE_ROLE_KEY)
+                            echo "::add-mask::$value"
+                            echo "SUPABASE_SERVICE_ROLE_KEY=$value" >> "$GITHUB_ENV" ;;
+              DB_URL)       echo "DATABASE_URL=$value" >> "$GITHUB_ENV" ;;
+            esac
+          done
+
+      - name: Seed
+        # `supabase start` already applied the migrations; running db:migrate
+        # after it applies them a second time, and 0021 creates policies with no
+        # `if not exists` guard, so the second pass fails on "policy already
+        # exists". One thing owns the schema.
+        #
+        # Seeded data is what turns five `skipped` stages into measured ones:
+        # the RLS fixture, an item page for the Product JSON-LD and the
+        # Lighthouse item budget, and a sold listing for the sold-200 check.
+        run: npm run db:seed
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the gate
+        id: gate
+        run: npm run release-gate
+
+      - name: Summarise
+        if: always()
+        # The renderer lives in scripts/ rather than inline here, so the PR
+        # summary and the local `/scorecard` say the same thing in the same
+        # words — and so shellcheck does not have to tell apart a JS template
+        # literal from a shell expansion inside a single-quoted string.
+        run: npm run --silent scorecard -- --latest >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard
+          path: |
+            quality/scorecard.json
+            quality/runs/
+          retention-days: 30
+
+# The gate used to commit its scorecard entry back to the PR branch. It stopped,
+# because that bookkeeping blocked the merge it exists to authorise. [D-88]
+#
+# A push by github-actions[bot] does not run workflows the way a person's push
+# does: GitHub parks the resulting runs as `action_required` and never executes
+# them. So every green run left the PR pointing at a bot commit with no checks
+# — and `EXECUTION_POLICY.md` §L2 requires every required check on the PR to be
+# green. The gate's own record-keeping made the PR permanently un-mergeable
+# under the rule the gate exists to serve.
+#
+# The scorecard is still written, still uploaded as an artifact above, and still
+# rendered into the job summary. What is gone is only the commit back.
