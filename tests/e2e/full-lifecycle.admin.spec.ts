@@ -245,15 +245,16 @@ test('a pickup inspection mismatch cancels the order and refunds in full', async
   await adminPage.getByLabel('הערת בדיקה').fill('הספה קרועה בצד — לא תואם למודעה');
   await adminPage.getByTestId('mark-inspection-failed').click();
 
+  // Poll the terminal state as a whole, not one field of it. The action writes
+  // the cancellation first and the refund amount two statements later, so
+  // polling on `status` alone can return while `refund_agorot` is still 0.
   await expect(async () => {
     const order = await getOrder(orderId);
     expect(order?.status).toBe('cancelled');
+    // The buyer received nothing, so the refund is the full amount — not partial.
+    expect(Number(order?.refund_agorot)).toBe(Number(order?.total_agorot));
+    expect(await getListingStatus(listing.id)).toBe('active');
   }).toPass({ timeout: 10_000 });
-
-  const order = await getOrder(orderId);
-  // The buyer received nothing, so the refund is the full amount — not partial.
-  expect(Number(order?.refund_agorot)).toBe(Number(order?.total_agorot));
-  expect(await getListingStatus(listing.id)).toBe('active');
 
   const events = (await getOrderEvents(orderId)).map((e) => e.type);
   expect(events).toContain('inspection_failed');
