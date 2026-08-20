@@ -69,3 +69,20 @@ git history is the record for L1.
 - **Actor:** agent session (tool: Write)
 - **Evidence:** blocked by .claude/hooks/pre-tool-use.sh
 - **Notes:** CLAUDE.md is operator-authored. Request logged, not performed.
+
+## 2026-08-20T11:00:00Z — L1 — Run 2 complete; PR #3 opened as a draft
+- **Actor:** Claude Code session, branch `claude/restyle-os-run-2-hi1cdq`
+- **Evidence:** `docs/RUN2_REPORT.md`; `quality/scorecard.json` (5 entries,
+  latest `3dcc5fa` — 11 pass / 0 fail / 2 skipped);
+  https://github.com/tomw200082-collab/Restyle-Rebuild/pull/3
+- **Notes:** Nine commits, one per phase. **No L2 or above was taken.** Nothing
+  merged to `main`, nothing deployed, no refund/payout/live payment executed,
+  `CLAUDE.md` untouched by any agent — the two `L5 REFUSED` entries above are
+  the hook proving that, not a request that succeeded.
+  Three actions on the live project are worth naming so they are not discovered
+  later: seven migrations applied (`0025`–`0030`, all additive, drift re-verified
+  at 932/932 objects); 26 demo listings inserted, all flagged `is_demo` and
+  removable by `npm run purge-demo`; and three demo users' emails confirmed
+  directly in `auth.users`, because this project requires confirmation and the
+  seeder had just created the accounts. Reference data — 12 categories, 12
+  brands, 21 delivery zones — was read and never written.
