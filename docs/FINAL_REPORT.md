@@ -3,7 +3,7 @@
 A production-grade rebuild of restyle.co.il: from a Base44 no-code SPA to
 Next.js 16 + Supabase, deliberately modelled on AptDeco and adapted to Gush Dan.
 
-**Status: complete and green.** Every phase gate passed. 68 Playwright tests
+**Status: complete and green.** Every phase gate passed. 69 Playwright tests
 across four actor roles, 77 unit tests, a full RLS assertion suite, and a
 structured-data validator all pass against a real PostgREST enforcing real
 policies.
