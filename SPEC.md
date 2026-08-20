@@ -291,3 +291,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
 - **A derived control is asserted populated before it is read.** A select whose
   options come from another select gets them one render later, and
   `evaluateAll` does not retry the way an assertion does. `[D-94]`
+- **A spec that mutates a shared fixture globally runs alone, after everything
+  else.** The seller-pause cron pauses every listing its seller has, and that
+  seller is the one every fixture uses. Running it beside the others paused a
+  listing another spec had just approved. `[D-95]`
