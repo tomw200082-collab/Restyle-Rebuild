@@ -7,29 +7,40 @@ line is current-state accurate as written.
 For what *was* done and how it was proved, see `docs/RECONCILIATION.md` and
 `docs/FINAL_REPORT.md` §7.
 
+> **Run 2 has since landed** (governance, CI, the release gate, six subagents,
+> migrations `0025`-`0031`, and demo content). Its own record is
+> `docs/RUN2_PLAN.md` and `docs/RUN2_REPORT.md`. The items below were
+> re-verified against the live project and this tree on **2026-08-20**, after
+> that merge; the ones that have closed are struck through rather than deleted,
+> so this still reads as a record of what Run 2 inherited.
+
 ---
 
 ## Blocking a first sign-in
 
-**No admin user exists.** `auth.users` is 0, `profiles` is 0, `profiles` with
-`role='admin'` is 0 on the remote — nobody has ever signed in, so the
-`handle_new_user` trigger has never granted the role. `ADMIN_EMAIL` is set to
+**Still open: no admin user exists.** `profiles` with `role='admin'` is **0**.
+Three accounts have since appeared — `auth.users` is 3 and `profiles` is 3,
+where Run 1 measured 0 and 0 — but none holds the admin role, so the
+`handle_new_user` trigger has still never granted it. `ADMIN_EMAIL` is set to
 `tom@gteveryday.com` in the local `.env.local`, but it is not yet set anywhere
 a deployed instance would read it; whoever signs in first with that address
 becomes the admin, so it must be that address and it must be first.
 
 ## Blocking anything visible
 
-**Not deployed to Vercel.** No `.vercel` directory, no linked project, no
-environment variables set there. `docs/DEPLOYMENT.md` has the full checklist;
-the four items that lose money are at the top of it.
+**Not deployed, as far as this repository can tell.** There is still no
+`.vercel` directory and no linked project in the tree. That is local evidence
+only — a project linked from elsewhere would not show up here — so treat it as
+"no evidence of a deployment" rather than proof of none. `docs/DEPLOYMENT.md`
+has the full checklist; the four items that lose money are at the top of it.
 
-**No demo content on the remote.** `listings` is 0, `storage.objects` is 0. The
-`listing-photos` bucket exists and is the only bucket. Reference data *is*
-present and correct — 12 categories, 12 brands, 21 delivery zones, shipped by
-migration `0024` — so the catalogue renders, it is simply empty. `npm run
-db:seed` would populate it but also creates three accounts with a known
-password, so it is a staging tool, not a production one.
+~~**No demo content on the remote.**~~ **Closed by Run 2.** The remote now holds
+**26 listings and 78 storage objects**, where Run 1 measured 0 and 0. Run 2 added
+`scripts/demo-content.ts`, `db/demo-data.ts`, a `0029_demo_content_flag`
+migration and a `purge-demo` command, so demo rows are flagged and removable —
+which is what `npm run db:seed` was not — that one also creates three accounts
+with a known password, so it stays a staging tool. Reference data is unchanged:
+12 categories, 12 brands, 21 delivery zones, shipped by migration `0024`.
 
 ## Blocked on someone else
 
@@ -45,7 +56,10 @@ rows and every `/ItemDetails?id=…` link in already-sent email resolves to
 seller who types the number they are used to receives 20% less. The software
 side is done — the wizard shows a live payout figure and the importer takes
 `display_price` — but the decision to accept that, change the rate, or warn
-returning sellers before they list has not been made. `docs/FINAL_REPORT.md` §5.
+returning sellers before they list has not been made. Run 2 wrote it up as
+`docs/decisions/ADR-002-returning-seller-pricing.md`, still **Proposed —
+awaiting the operator's decision**, with no behaviour changed. Background in
+`docs/FINAL_REPORT.md` §5.
 
 ## Infrastructure
 
@@ -64,9 +78,14 @@ git tag -a v0.1.0 983ea589bde4f3cdd8becdf1bd8ae80fc97fbea6 -m "Restyle v2 — fi
 git push origin v0.1.0
 ```
 
-**No CI.** No `.github/workflows`. Every gate in this project runs from the
-command line and nothing enforces them on a pull request; `npm run verify:all`
-is the single command a workflow would need to call.
+That SHA is deliberate: `983ea58` is Run 1's merge, and `v0.1.0` names Run 1's
+release point. `main` has since moved on to Run 2's work, so tagging the branch
+tip instead would give the tag a different meaning than the one it was
+authorised for.
+
+~~**No CI.**~~ **Closed by Run 2.** `.github/workflows` now holds four
+workflows — `ci.yml`, `release-gate.yml`, `drift-weekly.yml` and `claude.yml` —
+so the gates Run 1 could only run by hand are enforced on a pull request.
 
 **The sandbox cannot reach the remote.** Egress returns `403 Host not in
 allowlist: vntihvctqueohwprafwh.supabase.co`, so the application suites in Run 1
