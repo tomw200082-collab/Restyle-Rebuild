@@ -214,6 +214,28 @@ async function handleAuth(req, res, url) {
 }
 
 // --- storage ----------------------------------------------------------------
+
+/**
+ * supabase-js uploads as multipart/form-data from the browser (and as a raw
+ * body from Node). Real Supabase Storage parses the envelope; this shim has to
+ * as well, or the whole MIME envelope lands on disk and every browser-uploaded
+ * image is silently corrupt while Node-uploaded seed images look fine.
+ */
+async function extractUploadBody(raw, contentType) {
+  if (!contentType.startsWith('multipart/form-data')) return raw;
+
+  const form = await new Request('http://local/upload', {
+    method: 'POST',
+    headers: { 'content-type': contentType },
+    body: raw,
+  }).formData();
+
+  for (const value of form.values()) {
+    if (value instanceof Blob) return Buffer.from(await value.arrayBuffer());
+  }
+  return raw;
+}
+
 async function handleStorage(req, res, url) {
   const path = url.pathname.replace('/storage/v1', '');
 
@@ -241,7 +263,8 @@ async function handleStorage(req, res, url) {
     const file = join(STORAGE_ROOT, key);
     if (!file.startsWith(STORAGE_ROOT)) return json(res, 400, { message: 'Invalid path' });
 
-    const buf = await readBody(req);
+    const raw = await readBody(req);
+    const buf = await extractUploadBody(raw, req.headers['content-type'] ?? '');
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, buf);
 

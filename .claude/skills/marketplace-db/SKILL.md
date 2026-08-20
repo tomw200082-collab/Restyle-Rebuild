@@ -182,6 +182,26 @@ Enumerate the columns at migration time rather than hardcoding them: a column ad
 
 **Every policy set gets an assertion in `db/rls_test.sql`**, which runs in Gate 1. Assert both directions: the permitted read returns rows *and* the forbidden read returns zero. A test that only checks the happy path passes against a wide-open table.
 
+**Never hardcode a row count in the assertions.** The e2e suite creates real listings and orders, so `= 30` turns the RLS suite into something that fails for reasons unrelated to RLS — and a suite that cries wolf gets ignored. Capture the expected counts as the table owner *before* switching roles:
+
+```sql
+begin;
+create temp table expected on commit drop as
+  select (select count(*) from public.listings where status = 'active') as active;
+grant select on expected to anon, authenticated;
+
+set local role anon;
+set local request.jwt.claims = '{"role":"anon"}';
+do $$ begin
+  assert (select active from expected) > 0, 'fixture must have data to test with';
+  assert (select count(*) from public.listings where status = 'active')
+         = (select active from expected), 'anon must see every active listing';
+end $$;
+rollback;
+```
+
+Pair every "sees everything" assertion with a guard that the fixture actually contains something it shouldn't see — otherwise `count(all) = count(all)` passes trivially on an empty table.
+
 ## Seeds
 
 `db/seed.ts` must be safely re-runnable — it is run on every fresh checkout and in CI.

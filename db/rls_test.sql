@@ -19,15 +19,39 @@
 -- ===========================================================================
 -- ANONYMOUS
 -- ===========================================================================
+-- Expected counts are captured as the table owner BEFORE switching roles,
+-- never hardcoded. The e2e suite creates real listings, so a literal "= 30"
+-- turns this suite into something that fails for reasons unrelated to RLS.
 begin;
+create temp table expected on commit drop as
+select
+  (select count(*) from public.listings where status = 'active')          as active,
+  (select count(*) from public.listings where status = 'sold')            as sold,
+  (select count(*) from public.listings)                                  as all_listings,
+  (select count(*) from public.categories)                                as categories,
+  (select count(*) from public.delivery_zones)                            as zones,
+  (select count(*) from public.legacy_redirects)                          as redirects,
+  (select count(*) from public.profiles)                                  as profiles,
+  (select count(*) from public.listings
+    where seller_id = '00000000-0000-4000-8000-000000000002'
+      and status = 'draft')                                               as seller_drafts,
+  (select count(*) from public.listings
+    where seller_id = '00000000-0000-4000-8000-000000000004'
+      and status = 'draft')                                               as seller2_drafts;
+grant select on expected to anon, authenticated;
+
 set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
 
 do $$
 begin
-  assert (select count(*) from public.listings where status = 'active') = 30,
-    'anon must see all 30 active listings';
-  assert (select count(*) from public.listings where status = 'sold') = 2,
+  assert (select active from expected) > 0, 'the seed must provide active listings to test with';
+
+  assert (select count(*) from public.listings where status = 'active')
+         = (select active from expected),
+    'anon must see every active listing';
+  assert (select count(*) from public.listings where status = 'sold')
+         = (select sold from expected),
     'anon must see sold listings — they stay live as an SEO asset';
   assert (select count(*) from public.listings where status = 'draft') = 0,
     'anon must NOT see draft listings';
@@ -49,9 +73,12 @@ begin
   assert (select count(*) from public.outbound_events) = 0, 'anon must NOT see outbound events';
 
   -- Reference data anon legitimately needs.
-  assert (select count(*) from public.categories) = 12,     'anon must see categories';
-  assert (select count(*) from public.delivery_zones) = 20, 'anon must see delivery zones';
-  assert (select count(*) from public.legacy_redirects) = 5,'anon must see legacy redirects (middleware runs pre-session)';
+  assert (select count(*) from public.categories) = (select categories from expected),
+    'anon must see categories';
+  assert (select count(*) from public.delivery_zones) = (select zones from expected),
+    'anon must see delivery zones';
+  assert (select count(*) from public.legacy_redirects) = (select redirects from expected),
+    'anon must see legacy redirects (the middleware runs before any session exists)';
 
   -- site_config is public except the keys marked otherwise.
   assert (select count(*) from public.site_config where key = 'commission_pct') = 1,
@@ -83,6 +110,10 @@ end $$;
 rollback;
 
 begin;
+create temp table expected_auth on commit drop as
+  select (select count(*) from public.listings where status = 'active') as active;
+grant select on expected_auth to authenticated;
+
 set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000003"}';
 do $$
@@ -96,7 +127,8 @@ begin
 
   -- ...while the public columns of the same rows stay readable.
   assert (select count(*) from (select id, title, pickup_city
-                                  from public.listings where status = 'active') x) = 30,
+                                  from public.listings where status = 'active') x)
+         = (select active from expected_auth),
     'restricting the address column must not break normal catalogue reads';
 end $$;
 rollback;
@@ -127,14 +159,24 @@ rollback;
 -- SELLER
 -- ===========================================================================
 begin;
+create temp table expected_seller on commit drop as
+select
+  (select count(*) from public.listings where status = 'active') as active,
+  (select count(*) from public.listings
+    where seller_id = '00000000-0000-4000-8000-000000000002' and status = 'draft') as own_drafts;
+grant select on expected_seller to authenticated;
+
 set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000002"}';
 
 do $$
 begin
+  assert (select own_drafts from expected_seller) > 0,
+    'the seed must give this seller a draft to test with';
   assert (select count(*) from public.listings
-           where seller_id = '00000000-0000-4000-8000-000000000002' and status = 'draft') = 1,
-    'seller must see their own draft';
+           where seller_id = '00000000-0000-4000-8000-000000000002' and status = 'draft')
+         = (select own_drafts from expected_seller),
+    'seller must see their own drafts';
   assert (select count(*) from public.listings
            where seller_id = '00000000-0000-4000-8000-000000000004' and status = 'draft') = 0,
     'seller must NOT see another seller''s draft';
@@ -143,7 +185,8 @@ begin
     'seller must NOT see another seller''s pending listing';
 
   -- Public statuses stay visible to everyone, including other sellers.
-  assert (select count(*) from public.listings where status = 'active') = 30,
+  assert (select count(*) from public.listings where status = 'active')
+         = (select active from expected_seller),
     'seller must still see the public catalogue';
 
   assert (select count(*) from public.profiles) = 1,
@@ -214,14 +257,22 @@ rollback;
 -- ADMIN
 -- ===========================================================================
 begin;
+create temp table expected_admin on commit drop as
+select
+  (select count(*) from public.listings) as all_listings,
+  (select count(*) from public.profiles) as profiles;
+grant select on expected_admin to authenticated;
+
 set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000001"}';
 
 do $$
 begin
-  assert (select count(*) from public.listings) = 40,
+  assert (select count(*) from public.listings) = (select all_listings from expected_admin),
     'admin must see every listing in every status';
-  assert (select count(*) from public.profiles) = 4,
+  assert (select count(*) from public.listings where status = 'draft') > 0,
+    'the fixture must include non-public listings, or the assertion above proves nothing';
+  assert (select count(*) from public.profiles) = (select profiles from expected_admin),
     'admin must see every profile';
   assert (select count(*) from public.site_config where key = 'admin_email') = 1,
     'admin must see admin_email';

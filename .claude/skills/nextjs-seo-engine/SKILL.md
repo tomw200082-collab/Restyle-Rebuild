@@ -124,7 +124,16 @@ Tags: `listings` (any collection) · `listing:<id>` · `category:<slug>` · `bra
 | category or brand renamed | `sitemap` + that hub's tag |
 | `site_config` fee change | `listings` (delivery estimates are rendered) |
 
-Put the tag→mutation mapping in **one** module (`src/lib/cache/tags.ts`) and call it from the mutation, never scattering `revalidateTag` calls through server actions. A missed tag is invisible until a user reports stale data.
+Put the tag→mutation mapping in **one** module (`src/lib/cache/tags.ts`), and the invalidation calls in one more (`src/lib/cache/invalidate.ts`). Never scatter `revalidateTag` through server actions — a missed tag is invisible until a user reports stale data.
+
+**Next 16 split invalidation into two functions with different guarantees, and picking the wrong one is a silent staleness bug:**
+
+| Function | Where | Guarantee |
+|---|---|---|
+| `updateTag(tag)` | Server Actions **only** | expires immediately → read-your-own-writes, so a seller who edits a price sees the new one |
+| `revalidateTag(tag, profile)` | route handlers, webhooks, cron | marks stale for the next request; the second argument (a `cacheLife` profile such as `'max'`) is now **required** |
+
+Hence `invalidateFromAction()` and `invalidateFromRoute()` — callers say what happened, the module picks the tags and the mechanism.
 
 ## Infrastructure checklist
 
