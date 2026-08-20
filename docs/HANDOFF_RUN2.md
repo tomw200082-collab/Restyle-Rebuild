@@ -49,6 +49,21 @@ returning sellers before they list has not been made. `docs/FINAL_REPORT.md` §5
 
 ## Infrastructure
 
+**`v0.1.0` is not tagged on the remote, and needs one command.** The merge
+landed as `983ea589bde4f3cdd8becdf1bd8ae80fc97fbea6` — a real merge commit with
+both parents, so the phase-by-phase history is intact on `main`. The tag could
+not be created from the build session: pushing any ref under `refs/tags/`
+returns `HTTP 403`, and both `POST /git/tags` and `POST /git/refs` return
+`Write access to this GitHub API path is not permitted through this proxy`.
+Nothing about the repository blocks it; the session's credentials only permit
+pushing its own branch. From a normal checkout:
+
+```
+git fetch origin main
+git tag -a v0.1.0 983ea589bde4f3cdd8becdf1bd8ae80fc97fbea6 -m "Restyle v2 — first production-ready build"
+git push origin v0.1.0
+```
+
 **No CI.** No `.github/workflows`. Every gate in this project runs from the
 command line and nothing enforces them on a pull request; `npm run verify:all`
 is the single command a workflow would need to call.

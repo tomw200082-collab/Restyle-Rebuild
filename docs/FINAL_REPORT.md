@@ -302,6 +302,20 @@ now written, from the implementation rather than from memory, and the ledger
 runs 01–60 with no gaps. The count in section 1 moved from 57 to 60 for this
 reason and the addition of `[D-60]`.
 
+### Merged, not tagged
+
+Run 1 is on `main` as merge commit
+**`983ea589bde4f3cdd8becdf1bd8ae80fc97fbea6`** — a real merge with two parents,
+not a squash, so the phase-by-phase history and the record of what was found
+when both survive.
+
+`v0.1.0` is **not** tagged. The build session cannot create one: pushing any ref
+under `refs/tags/` returns `HTTP 403`, and both `POST /git/tags` and
+`POST /git/refs` return *"Write access to this GitHub API path is not permitted
+through this proxy"* — the session's credentials permit pushing its own branch
+and nothing else. Nothing in the repository blocks the tag. The three commands
+that create it from a normal checkout are in `docs/HANDOFF_RUN2.md`.
+
 ---
 
 ## 8. Where to start reading
