@@ -75,6 +75,7 @@ export async function createListing(
     disassembly: boolean;
     sellerId: string;
     allowSelfPickup: boolean;
+    status: 'active' | 'pending_review';
   }> = {},
 ) {
   const id = randomUUID();
@@ -93,8 +94,9 @@ export async function createListing(
        pickup_city, pickup_street, pickup_floor, pickup_has_elevator,
        needs_disassembly, allow_self_pickup, published_at, expires_at
      ) values ($1, $2, $3, $4, 'פריט שנוצר על ידי מערכת הבדיקות', $5, 'good',
-       200, 90, 80, $6, 'active', $7, 'רחוב הבדיקה 1', $8, $9, $10, $11,
-       now(), now() + interval '90 days')
+       200, 90, 80, $6, $12::text::public.listing_status, $7, 'רחוב הבדיקה 1', $8, $9, $10, $11,
+       case when $12::text = 'active' then now() end,
+       case when $12::text = 'active' then now() + interval '90 days' end)
      returning id, slug, title`,
     [
       id,
@@ -108,6 +110,7 @@ export async function createListing(
       overrides.elevator ?? true,
       overrides.disassembly ?? false,
       overrides.allowSelfPickup ?? true,
+      overrides.status ?? 'active',
     ],
   );
 
@@ -157,4 +160,12 @@ export async function latestOrderForListing(listingId: string) {
     [listingId],
   );
   return row?.id ?? null;
+}
+
+export async function getPayoutForOrder(orderId: string) {
+  const [row] = await sql<{ id: string; status: string; amount_agorot: string }>(
+    'select id, status, amount_agorot from public.payouts where order_id = $1',
+    [orderId],
+  );
+  return row ?? null;
 }
