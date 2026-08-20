@@ -3,6 +3,7 @@ import { Container } from '@/components/layout/container';
 import { Badge } from '@/components/ui/badge';
 import { OrderTimeline } from '@/components/dashboard/order-timeline';
 import { AdminOrderActions } from '@/components/admin/order-actions';
+import { availableDates } from '@/lib/scheduling';
 import { createServiceSupabase } from '@/lib/supabase/service';
 import { listOrderEvents } from '@/lib/db/orders';
 import { formatPrice, formatShortDate } from '@/lib/format';
@@ -51,6 +52,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <AdminOrderActions
             orderId={order.id}
             status={order.status}
+            dates={availableDates(new Date(), 30)}
             proposedWindows={
               (delivery?.proposed_windows as Array<{ date: string; shift: string }> | null) ?? []
             }

@@ -276,3 +276,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   back in an error and it landed in a public CI log; secret masking cannot
   catch a fragment of the string it was given. Use `PG*` environment
   variables, and scrub anything on its way to a log. `[D-89]`
+- **No client component derives a date from its own clock.** The server and the
+  browser run the same line at different instants; either side of midnight they
+  disagree, React re-renders the subtree, and the control the user is operating
+  detaches. Compute it on the server and pass it down. `[D-90]`

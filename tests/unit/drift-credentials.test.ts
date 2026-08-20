@@ -44,6 +44,24 @@ describe('psql credentials never reach the command line', () => {
     expect(env.PGPASSWORD).toBe('a%b@c');
   });
 
+  it('names the problem when the secret is not a URI at all', () => {
+    // psql would treat this as a database name and connect to the local socket,
+    // failing with a message that mentions neither the secret nor the cause.
+    expect(() => pgEnv('fv6u5JCajkc')).toThrow(/must be a connection URI/);
+    expect(() => pgEnv('fv6u5JCajkc')).toThrow(/Supabase/);
+  });
+
+  it('does not put the mis-pasted value itself in the message', () => {
+    // The message quotes twelve characters for orientation, not the whole
+    // secret — if somebody pastes a password here, this error is going to a log.
+    const secret = 'super-secret-password-nobody-should-see';
+    try {
+      pgEnv(secret);
+    } catch (error) {
+      expect((error as Error).message).not.toContain(secret);
+    }
+  });
+
   it('defaults the port and database rather than emitting empty values', () => {
     const env = pgEnv('postgresql://postgres:p@db.example.co/');
     expect(env.PGPORT).toBe('5432');

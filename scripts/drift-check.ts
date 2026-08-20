@@ -78,6 +78,19 @@ function pgEnv(connectionString: string): NodeJS.ProcessEnv {
       return value;
     }
   };
+  // psql treats a first argument that is not a URI as a *database name* and
+  // quietly connects to the local socket instead — "connection to server on
+  // socket /var/run/postgresql/.s.PGSQL.5432 failed" is what a mis-pasted
+  // secret looks like, and it names neither the secret nor the real problem.
+  // Say it here instead. [D-89]
+  if (!/^postgres(ql)?:\/\//.test(connectionString)) {
+    throw new Error(
+      'SUPABASE_DB_URL must be a connection URI beginning with postgresql:// — ' +
+        'Supabase → Project Settings → Database → Connection string → URI. ' +
+        `Got ${connectionString.length} characters starting "${connectionString.slice(0, 12)}…".`,
+    );
+  }
+
   const url = new URL(connectionString);
   const sslmode = url.searchParams.get('sslmode');
   return {

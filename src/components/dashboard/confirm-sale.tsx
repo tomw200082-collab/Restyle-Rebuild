@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
 import { confirmSale } from '@/lib/actions/orders';
-import { SHIFT_HOURS, availableDates, type Shift } from '@/lib/scheduling';
+import { SHIFT_HOURS, type Shift } from '@/lib/scheduling';
 import { formatShortDate } from '@/lib/format';
 
 const SHIFT_LABEL: Record<Shift, string> = {
@@ -25,9 +25,25 @@ type Draft = { date: string; shift: Shift | '' };
  * only — because an appointment nobody keeps costs more than the convenience
  * of offering it. [D-32]
  */
-export function ConfirmSale({ orderId, hoursLeft }: { orderId: string; hoursLeft: number }) {
+export function ConfirmSale({
+  orderId,
+  hoursLeft,
+  dates,
+}: {
+  orderId: string;
+  hoursLeft: number;
+  /**
+   * Computed on the server and passed in. It used to be
+   * `useMemo(() => availableDates(new Date(), 21), [])` right here, and that is
+   * a hydration mismatch waiting for midnight: the server renders the list from
+   * its `new Date()`, the browser recomputes from its own a moment later, and
+   * either side of 00:00 the two lists differ. React then throws away the
+   * server's markup for this subtree and re-renders it, which detaches the
+   * `<select>` the seller — or Playwright — was in the middle of using. [D-90]
+   */
+  dates: Array<{ date: string; shifts: Shift[] }>;
+}) {
   const router = useRouter();
-  const dates = useMemo(() => availableDates(new Date(), 21), []);
   const [slots, setSlots] = useState<Draft[]>([
     { date: '', shift: '' },
     { date: '', shift: '' },

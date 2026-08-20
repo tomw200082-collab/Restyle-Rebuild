@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Container } from '@/components/layout/container';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmSale } from '@/components/dashboard/confirm-sale';
+import { availableDates } from '@/lib/scheduling';
 import { OrderTimeline } from '@/components/dashboard/order-timeline';
 import { requireUser } from '@/lib/auth/session';
 import { getOrderForUser, listOrderEvents } from '@/lib/db/orders';
@@ -42,7 +43,11 @@ export default async function SellerOrderPage({ params }: { params: Promise<{ id
       <div className="mt-8 grid gap-8 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-7">
           {needsConfirmation ? (
-            <ConfirmSale orderId={order.id} hoursLeft={hoursUntil(deadline)} />
+            <ConfirmSale
+              orderId={order.id}
+              hoursLeft={hoursUntil(deadline)}
+              dates={availableDates(new Date(), 21)}
+            />
           ) : null}
 
           <OrderTimeline events={events} />
