@@ -34,7 +34,6 @@ saying so. This is not pedantry — it is the direct lesson of `[D-49]` and
 npm run release-gate                          # full run; starts its own server
 npm run release-gate -- --fast                # static stages only, quick signal
 npm run release-gate -- --base-url=https://…  # audit a deployed origin
-npm run release-gate -- --update-baselines    # accept new RTL screenshots
 npm run release-gate -- --no-append           # do not write to the scorecard
 ```
 
@@ -61,8 +60,8 @@ exists. Run 1 lost time to exactly that twice.
 | 7 | `status-codes` | **the soft-404 class** `[D-49]` |
 | 8 | `contrast` | **the tailwind-merge class** `[D-51]` |
 | 9 | `axe` | accessibility regressions, 0 critical |
-| 10 | `lighthouse` | perf ≥ 90, SEO = 100, a11y ≥ 95 on home + category + item |
-| 11 | `rtl-screenshots` | an RTL layout break at 390px |
+| 10 | `lighthouse` | SEO = 100 and a11y ≥ 95 hard; performance floor 70, target 90 tracked `[D-80]` |
+| 11 | `rtl-screenshots` | an RTL layout break at 390px — `dir` and sideways overflow `[D-79]` |
 | 12 | `sold-200` | throwing away the inbound link a sold item earned `[D-33]` |
 | 13 | `sitemap-coverage` | a route missing from the sitemap, or a sitemap URL that 404s |
 
@@ -95,7 +94,6 @@ A skip is allowed for L2 **only** when both hold:
 | `rls-fixture-absent` | the reference database has no seeded rows to assert against |
 | `browser-unavailable` | no Chromium, no server origin, or `--fast` |
 | `lighthouse-unavailable` | `lighthouse` not installed |
-| `baseline-created` | first screenshot run; there is nothing to compare against yet |
 
 Anything else makes the run ineligible however many stages passed, and the gate
 prints which skips fell outside the list.

@@ -1,0 +1,10 @@
+OK   / dir=rtl width=390/390 render=7a63b80c4bbc71d7
+OK   /accessibility dir=rtl width=390/390 render=65c74d21b6edfa83
+OK   /buyer-protection dir=rtl width=390/390 render=ad260d517901e919
+OK   /cancellation-policy dir=rtl width=390/390 render=be6918967401598e
+OK   /catalog dir=rtl width=390/390 render=f9dd61cd406087d1
+OK   /how-it-works dir=rtl width=390/390 render=3f31d5679ddd0c65
+OK   /privacy dir=rtl width=390/390 render=083eae3dc7d762e3
+OK   /sell dir=rtl width=390/390 render=0a0ce74c5849f589
+OK   /sell/new/submitted dir=rtl width=390/390 render=059160686106f51e
+OK   /terms dir=rtl width=390/390 render=73da83e306f30463

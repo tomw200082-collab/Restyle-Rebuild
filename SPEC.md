@@ -238,3 +238,26 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   migration without an `if not exists` guard. Do not make every migration
   re-runnable to hide a double-application — remove the second application.
   `[D-71]`
+- **A measurement that varies with the machine is not a gate.** A sha256 of a
+  rendered screenshot depends on the browser build, the font set and the
+  catalogue; none is pinned here, so it can only pass where the baseline was
+  made. Assert properties that hold anywhere — `dir="rtl"`, no sideways
+  overflow at 390px — and keep the render as evidence. `[D-79]`
+- **Report every measurement, not only the failing one.** A stage that prints
+  only what missed its budget cannot distinguish one slow page from one slow
+  machine. Lighthouse now prints all three scores for all three pages. `[D-80]`
+- **One thing owns the served origin.** The release gate starts the server and
+  names the origin in `E2E_BASE_URL`; anything handed that variable reuses it
+  rather than starting its own. Ports are derived from the URL, never stated a
+  second time. `[D-81]`
+- **A status is public in four places, and they must agree.** The enum, the
+  transition table, the query's status list and the RLS policy. `paused` was
+  added to three of them and the item page 404'd. `[D-82]`
+- **A setup must prove the artefact it produces, not the step that produced
+  it.** Asserting a login succeeded is not asserting the saved storage state
+  authenticates. Eleven buyer specs failed on eleven unrelated locators and
+  none of them named the session. `[D-83]`
+- **A measurement must be able to prove which target it measured.** Three
+  Lighthouse runs sharing one browser audited a leftover target and reported a
+  missing `<title>` on a page that has always had one. A defect that is
+  plausible and carries a number is the hardest kind to disbelieve. `[D-84]`

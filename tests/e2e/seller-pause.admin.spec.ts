@@ -35,8 +35,35 @@ test.afterAll(async () => {
 async function expiredOrderFor(sellerId: string) {
   const listing = await createListing({ sellerId, price_agorot: 50_000 });
 
+  // Named notation, and every amount stated. `create_order` takes seventeen
+  // parameters because the fee engine computes the money and the function only
+  // records it; a positional call here would silently re-order as soon as a
+  // parameter is added, and the first version of this helper invented a
+  // seven-argument signature that does not exist. It was never caught locally
+  // because the e2e suite refuses a non-local target and CI had not yet run it.
+  //
+  // Zone A pickup and dropoff (₪149), 20% commission on ₪500. The database's
+  // own CHECK asserts commission + payout = item and total = item + delivery +
+  // surcharges, so wrong arithmetic here fails loudly rather than seeding a
+  // test with money that does not balance.
   await sql(
-    `select public.create_order($1::uuid, $2::uuid, 'platform', 'תל אביב-יפו', 0, true, null)`,
+    `select public.create_order(
+       p_listing_id           => $1::uuid,
+       p_buyer_id             => $2::uuid,
+       p_item_agorot          => 50000,
+       p_delivery_agorot      => 14900,
+       p_surcharges           => '[]'::jsonb,
+       p_surcharges_agorot    => 0,
+       p_total_agorot         => 64900,
+       p_commission_agorot    => 10000,
+       p_seller_payout_agorot => 40000,
+       p_delivery_method      => 'platform',
+       p_payment_provider     => 'mock',
+       p_dropoff_city         => 'תל אביב-יפו',
+       p_dropoff_street       => 'רחוב הבדיקה 1',
+       p_dropoff_floor        => 0,
+       p_dropoff_has_elevator => true
+     )`,
     [listing.id, '00000000-0000-4000-8000-000000000003'],
   );
   const orderId = await latestOrderForListing(listing.id);

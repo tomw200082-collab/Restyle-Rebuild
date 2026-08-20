@@ -86,3 +86,35 @@ git history is the record for L1.
   directly in `auth.users`, because this project requires confirmation and the
   seeder had just created the accounts. Reference data — 12 categories, 12
   brands, 21 delivery zones — was read and never written.
+
+## 2026-08-20T11:35:00Z — L1 — CI's first real e2e run; five defects fixed, one still open
+- **Actor:** Claude Code session, branch `claude/restyle-os-run-2-hi1cdq`
+- **Evidence:** run 5 of `release-gate.yml` (10 pass / 3 fail / **0 skipped** —
+  the RLS and e2e stages became measurements for the first time); run 5 of
+  `ci.yml` (`57 passed, 19 failed`); `docs/DECISIONS.md` D-79 … D-83;
+  `supabase/migrations/0031_paused_listings_readable.sql`
+- **Notes:** The first CI run to get past the build found five real defects, and
+  three of them were in the quality layer rather than the product: an RTL check
+  that hashed a screenshot and so could only pass on the machine that made the
+  baseline `[D-79]`; a Lighthouse stage that printed only the score that failed,
+  making one slow page indistinguishable from one slow machine `[D-80]`; and a
+  server the gate started and Playwright then refused to reuse, a CI-only
+  failure by construction `[D-81]`. The product defects were `paused` added to
+  the enum, the transitions and the query but not the RLS policy, so a paused
+  item page 404'd against its own spec `[D-82]`, and a P1 test helper calling
+  `create_order` with seven arguments where it takes seventeen `[D-83]`.
+  **Read-only against the live project:** policy and column-privilege
+  introspection, and one signed-in query as a demo user to confirm the checkout
+  read path works. Nothing was written. Address protection re-verified while
+  there — `has_table_privilege('authenticated','listings','SELECT')` is `false`
+  and `pickup_street` is unreadable by both API roles.
+  **`0031` has deliberately not been applied to the live project yet.** It
+  changes RLS policies, and the order that makes that safe is CI first, on a
+  stack that can be thrown away, then the real project once the change is proven
+  and the drift digest re-verified.
+  **Still open:** every buyer spec runs signed out in CI even though the setup's
+  logins succeed. Not reproducible here — this environment has no Docker and no
+  Supabase CLI, so there is no local stack to run the suite against. Rather than
+  guess at a fix, the setup now proves the storage state it saves actually
+  authenticates `[D-83]`, so the next run reports the cause once instead of
+  eleven unrelated locator timeouts.

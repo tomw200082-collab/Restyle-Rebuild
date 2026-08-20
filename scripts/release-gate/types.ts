@@ -46,7 +46,6 @@ export type GateContext = {
   /** Skip the slow browser stages — for a fast local signal, never for L2. */
   fast: boolean;
   /** Update visual baselines instead of comparing against them. */
-  updateBaselines: boolean;
 };
 
 export type Stage = {
@@ -85,7 +84,6 @@ export const ALLOWED_SKIPS = [
   'no-listings-in-target-database',
   'browser-unavailable',
   'lighthouse-unavailable',
-  'baseline-created',
   'rls-fixture-absent',
 ] as const;
 

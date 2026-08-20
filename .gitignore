@@ -38,6 +38,8 @@ npm-debug.log*
 .turbo
 tsconfig.tsbuildinfo
 
-# release gate — screenshots are large and regenerated every run; the hashes in
-# quality/baselines are what the visual diff actually compares.
+# release gate — screenshots are large and regenerated every run. They are
+# evidence for a human to look at when a stage reports something, not an input
+# to any comparison [D-79], so the repository keeps the text evidence and the
+# CI artifact keeps the pictures.
 quality/runs/*/screenshots/

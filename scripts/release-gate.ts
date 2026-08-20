@@ -4,7 +4,6 @@
  *   npm run release-gate                     full run against a server it starts
  *   npm run release-gate -- --fast           static stages only, for a quick signal
  *   npm run release-gate -- --base-url=URL   audit an already-running origin
- *   npm run release-gate -- --update-baselines
  *   npm run release-gate -- --no-append      do not write to the scorecard
  *
  * It **fails closed**. A stage that errors, times out, or cannot run is not a
@@ -118,7 +117,6 @@ async function main() {
   const envLoaded = loadEnv();
 
   const fast = arg('fast') !== undefined;
-  const updateBaselines = arg('update-baselines') !== undefined;
   const noAppend = arg('no-append') !== undefined;
   const externalBase = arg('base-url');
   const port = Number(arg('port') ?? 3210);
@@ -128,7 +126,7 @@ async function main() {
   await mkdir(outDir, { recursive: true });
 
   const baseUrl = externalBase || `http://127.0.0.1:${port}`;
-  const ctx: GateContext = { baseUrl, outDir, fast, updateBaselines };
+  const ctx: GateContext = { baseUrl, outDir, fast };
 
   console.log('Restyle release gate');
   console.log(`  env      ${envLoaded.length ? envLoaded.join(', ') : '(process env only)'}`);

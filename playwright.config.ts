@@ -2,8 +2,26 @@ import { defineConfig, devices } from '@playwright/test';
 
 import { existsSync } from 'node:fs';
 
-const PORT = Number(process.env.E2E_PORT ?? 3100);
-const BASE_URL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
+/**
+ * One thing owns the server.
+ *
+ * `E2E_BASE_URL` is set by whoever is already serving the app — today that is
+ * the release gate, which starts `next start` itself so that Lighthouse, axe
+ * and the contrast probe all measure the same process. When it is set, this
+ * config must reuse that origin rather than race it for the port.
+ *
+ * `reuseExistingServer: !process.env.CI` alone was wrong in the way that only
+ * shows up on a runner: locally it reused the gate's server and everything
+ * passed, and in CI it refused, so the gate failed with "127.0.0.1:3210 is
+ * already used" against a server the gate had just started on purpose.
+ *
+ * The port is derived from the URL rather than read separately, so `command`
+ * and `url` cannot name different ports — the same "two things setting one
+ * fact" defect as the duplicated security headers in [D-76].
+ */
+const BASE_URL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.E2E_PORT ?? 3100}`;
+const PORT = Number(new URL(BASE_URL).port || 3100);
+const SERVER_IS_OWNED_ELSEWHERE = Boolean(process.env.E2E_BASE_URL);
 
 /**
  * Sandboxes and CI images often ship a Chromium whose build number does not
@@ -72,7 +90,7 @@ export default defineConfig({
   webServer: {
     command: `npx next start --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: SERVER_IS_OWNED_ELSEWHERE || !process.env.CI,
     timeout: 120_000,
     stdout: 'ignore',
     stderr: 'pipe',

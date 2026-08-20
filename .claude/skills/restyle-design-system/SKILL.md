@@ -176,6 +176,6 @@ disabled, 390px full-page render. Dynamic regions — images, times, prices — 
 masked, so a diff means an actual layout change.
 
 When a diff is intentional: look at the screenshot in `quality/runs/<stamp>/
-screenshots/`, then `npm run release-gate -- --update-baselines`, and say in the
+screenshots/` — they are evidence for a human, not a verdict [D-79] — and say in the
 commit **what** changed. A baseline updated without a sentence explaining it is a
 baseline nobody will trust enough to enforce.
