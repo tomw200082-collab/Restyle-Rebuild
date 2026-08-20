@@ -85,3 +85,38 @@ Why this shape: using the **real** PostgREST binary means RLS is genuinely enfor
 **Known gaps carried forward**
 - Google OAuth is configured but not exercised locally (no provider in the local stack) — `[D-30]`.
 - Email OTP needs a real mail provider; local sign-in is email+password.
+
+---
+
+## Phase 2 — Marketplace core ✅
+
+**Done**
+- **Fee engine** (`src/lib/pricing/engine.ts`) — pure, no I/O, single source of truth for money. 20 unit cases cover zone selection and the cross-zone "higher zone wins" rule, the per-side floor surcharge, self-pickup, commission rounding, and the two invariants the database also enforces.
+- **Catalog** — SSR, filters as URL state, validated params, pagination, empty state with a way out.
+- **Item page** — gallery, specs, price with original-price strikethrough, live delivery estimator, favourites, seller card (first name + initial, city only), similar items. Sold items stay at 200 with no purchase path.
+- **Delivery estimator** imports the *same* pure fee function into the browser — no round trip, no second implementation to drift from the server's.
+- **Category and brand hubs**, with `noindex` below 3 items on brand pages.
+- **Sell wizard** — photos-first, client-side compression, AI draft, five steps, review, submit into `pending_review`.
+- **AI provider** — `AiListingProvider` interface, deterministic mock (the default) and an Anthropic vision implementation.
+- **Cache invalidation** centralised for Next 16's split API (`updateTag` in server actions, `revalidateTag(tag, profile)` elsewhere).
+
+**Gate 2 — all green**
+| Check | Result |
+|---|---|
+| Build / typecheck / lint | ✅ |
+| Vitest | ✅ 36 tests (16 slug + 20 pricing) |
+| RLS assertions | ✅ |
+| Playwright | ✅ 20 tests across anon / buyer / seller |
+
+**Four defects found while building and testing this phase**
+
+1. **Embedded selects were untyped.** The type generator emitted empty `Relationships`, so every `listings(*, listing_photos(*))` type-checked as `SelectQueryError`. Fixed by introspecting foreign keys.
+2. **A failed photo upload rendered nothing.** `formError` was only shown on the review step, so a seller whose upload failed saw a disabled Continue button and no explanation. Now reported per file, distinguishing an undecodable file (retrying will never help) from a failed upload (retrying might).
+3. **Submit validation was unactionable.** It said "יש שדות שצריך לתקן" without saying which field. The review step now lists each error with a control that jumps to the step that owns it.
+4. **Every browser-uploaded image was silently corrupt.** supabase-js uploads as `multipart/form-data` from the browser, and the local storage shim was writing the whole MIME envelope to disk. Node-uploaded seed images masked it because they take a different path. The e2e now asserts WebP magic bytes on the stored object.
+
+**Also hardened:** `db/rls_test.sql` no longer hardcodes row counts — the e2e suite creates real listings, and literal counts made the RLS suite fail for reasons unrelated to RLS. Expected counts are captured as the table owner before switching roles, with a guard that the fixture actually contains something the role shouldn't see.
+
+**Known gaps carried forward**
+- Buy and offer CTAs link to `/checkout/new` and `/item/[slug]/offer`, both built in Phase 3.
+- `generateStaticParams` for item/category/brand pages comes in Phase 5.
