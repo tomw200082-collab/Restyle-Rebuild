@@ -155,7 +155,28 @@ language sql stable security definer set search_path = public as $$
 $$;
 ```
 
-**The address rule.** `pickup_street` is a column on `listings`, and no public query selects it. Protecting it has two layers: RLS restricts row/column access, and the repository layer's public projections simply do not list the column. Structure beats vigilance — a `select *` that forgets to exclude it is the exact bug that leaks every seller's home address. `[D-06]`
+**The address rule, and the trap in it.** `pickup_street` must be unreadable through the API. Two things about this are counter-intuitive and both were found the hard way:
+
+1. **RLS cannot protect a column.** RLS is row-level. A signed-in buyer legitimately reads any *active* listing's row, so row policies alone hand them the address. Column privileges are the only mechanism.
+2. **`revoke select (col) on t from role` is inert on top of a table-level grant.** In Postgres `GRANT SELECT ON t` covers every column, present and future, and a column-level revoke cannot subtract from it. The working form is to revoke the table grant and re-grant column by column:
+
+```sql
+do $$
+declare v_cols text;
+begin
+  select string_agg(quote_ident(column_name), ', ' order by ordinal_position)
+    into v_cols
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'listings'
+     and column_name <> 'pickup_street';
+  execute 'revoke select on public.listings from anon, authenticated';
+  execute format('grant select (%s) on public.listings to anon, authenticated', v_cols);
+end $$;
+```
+
+Enumerate the columns at migration time rather than hardcoding them: a column added later is then simply not granted, which fails closed. `pickup_street` ends up readable only by `service_role`, and the address is revealed through server-side paths that check authorization first — admin manifests, and the buyer of a paid order. `[D-06]`, `[D-45]`
+
+**Assert privilege rules in `db/rls_test.sql` for `authenticated`, not only `anon`.** The anon-only version of this assertion passed while every signed-in user could read every seller's home address.
 
 **Write RLS policies in pairs.** A `for select` policy without a matching `for insert`/`update` policy silently blocks writes, and the resulting error (`new row violates row-level security policy`) is easy to misread as a validation bug. State `using` for reads and `with check` for writes explicitly, even when they're identical.
 
@@ -188,6 +209,7 @@ Client construction is always `createClient<Database>(…)`; an untyped client s
 ## Query conventions
 
 - All queries live in `src/lib/db/` repository modules, never inline in components. One place to enforce safe projections and to test query shapes.
+- **Never expose a `SECURITY DEFINER` function in `public`.** Supabase publishes everything in `public` as `/rest/v1/rpc/<name>`, and Postgres grants EXECUTE to PUBLIC by default — so a guarded state-machine function is an anonymous endpoint unless you revoke it. Mutating definer functions get `revoke all from public, anon, authenticated` plus `grant execute to service_role`; RLS predicate helpers live in a non-exposed `private` schema. Run `get_advisors(type: 'security')` after every DDL change. `[D-44]`
 - Select explicit column lists. `select('*')` on `listings` returns `pickup_street`.
 - Filter by indexed columns; every column used in a `where` on a hot path (`status`, `category_id`, `pickup_city`, `slug`, `seller_id`, `buyer_id`) has an index, and status filters use a partial index on `active` since that's the overwhelming majority of catalogue reads.
 - Prefer one query with an embedded resource (`listings(*, listing_photos(*))`) over N+1 round trips.
