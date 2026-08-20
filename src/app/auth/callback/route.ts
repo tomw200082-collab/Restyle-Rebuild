@@ -11,8 +11,11 @@ export async function GET(request: NextRequest) {
   const rawNext = searchParams.get('next') ?? '/';
 
   // Only same-origin relative paths: an attacker-supplied `next` would
-  // otherwise turn the callback into an open redirect.
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
+  // otherwise turn the callback into an open redirect. Backslashes are
+  // normalised first, because browsers treat `/\evil.com` as `//evil.com`
+  // — a check that only looks for `//` misses it entirely.
+  const normalised = rawNext.replace(/\\/g, '/');
+  const next = normalised.startsWith('/') && !normalised.startsWith('//') ? normalised : '/';
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);
