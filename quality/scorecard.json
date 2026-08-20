@@ -1134,6 +1134,199 @@
           ]
         }
       ]
+    },
+    {
+      "at": "2026-08-20T12:00:03.631Z",
+      "commit": "6e3bd60",
+      "branch": "claude/restyle-os-run-2-hi1cdq",
+      "verdict": "pass",
+      "complete": true,
+      "counts": {
+        "pass": 13,
+        "fail": 0,
+        "skipped": 0
+      },
+      "target": "http://127.0.0.1:54321",
+      "stages": [
+        {
+          "id": "build",
+          "name": "build + typecheck + lint",
+          "durationMs": 43366,
+          "status": "pass",
+          "detail": "typecheck, lint and production build clean",
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/build.log"
+          ]
+        },
+        {
+          "id": "unit",
+          "name": "unit tests",
+          "durationMs": 1393,
+          "status": "pass",
+          "detail": "102 unit tests passed",
+          "metrics": {
+            "tests": 102
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/unit.log"
+          ]
+        },
+        {
+          "id": "rls",
+          "name": "RLS assertion suite",
+          "durationMs": 533,
+          "status": "pass",
+          "detail": "RLS suite passed",
+          "metrics": {},
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/rls.log"
+          ]
+        },
+        {
+          "id": "e2e",
+          "name": "end-to-end, four actor roles",
+          "durationMs": 82544,
+          "status": "pass",
+          "detail": "77 e2e tests passed",
+          "metrics": {
+            "tests": 77,
+            "passed": 77,
+            "flaky": 0,
+            "skipped": 0
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/e2e.log"
+          ]
+        },
+        {
+          "id": "jsonld",
+          "name": "JSON-LD structured data",
+          "durationMs": 565,
+          "status": "pass",
+          "detail": "structured data valid",
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/jsonld.log"
+          ]
+        },
+        {
+          "id": "hebrew-copy",
+          "name": "Hebrew copy lint",
+          "durationMs": 62,
+          "status": "pass",
+          "detail": "no English leakage across 89 components",
+          "metrics": {
+            "leaks": 0,
+            "filesScanned": 89
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/hebrew-copy.txt"
+          ]
+        },
+        {
+          "id": "status-codes",
+          "name": "status codes on every public route",
+          "durationMs": 411,
+          "status": "pass",
+          "detail": "25 routes returned their expected status",
+          "metrics": {
+            "checked": 25,
+            "wrong": 0
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/status-codes.txt"
+          ]
+        },
+        {
+          "id": "contrast",
+          "name": "computed contrast, WCAG AA",
+          "durationMs": 16077,
+          "status": "pass",
+          "detail": "340 interactive elements at or above AA",
+          "metrics": {
+            "elements": 340,
+            "below": 0
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/contrast.txt"
+          ]
+        },
+        {
+          "id": "axe",
+          "name": "axe accessibility scan",
+          "durationMs": 27516,
+          "status": "pass",
+          "detail": "0 critical violations across 20 pages (0 serious, reported)",
+          "metrics": {
+            "critical": 0,
+            "serious": 0
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/axe.txt"
+          ]
+        },
+        {
+          "id": "lighthouse",
+          "name": "Lighthouse budgets",
+          "durationMs": 78213,
+          "status": "pass",
+          "detail": "home 93/100/100 · category 93/100/100 · item 91/100/100 (perf/a11y/seo, median of 3)",
+          "metrics": {
+            "home.performance": 93,
+            "home.seo": 100,
+            "home.accessibility": 100,
+            "category.performance": 93,
+            "category.seo": 100,
+            "category.accessibility": 100,
+            "item.performance": 91,
+            "item.seo": 100,
+            "item.accessibility": 100
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/lighthouse.json"
+          ]
+        },
+        {
+          "id": "rtl-screenshots",
+          "name": "RTL layout at 390px",
+          "durationMs": 10071,
+          "status": "pass",
+          "detail": "10 pages are rtl and fit 390px without sideways scroll",
+          "metrics": {
+            "checked": 10
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/rtl-layout.txt",
+            "quality/runs/2026-08-20T12-00-03-631Z/screenshots"
+          ]
+        },
+        {
+          "id": "sold-200",
+          "name": "sold pages still return 200",
+          "durationMs": 99,
+          "status": "pass",
+          "detail": "sold item page returns 200",
+          "metrics": {
+            "slug": "shida-atikh-mshoptzt-000000"
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/sold-page.txt"
+          ]
+        },
+        {
+          "id": "sitemap-coverage",
+          "name": "sitemap coverage vs live routes",
+          "durationMs": 1047,
+          "status": "pass",
+          "detail": "87 sitemap URLs, all resolving; 14 routes covered",
+          "metrics": {
+            "sitemapUrls": 87,
+            "liveRoutes": 14
+          },
+          "evidence": [
+            "quality/runs/2026-08-20T12-00-03-631Z/sitemap-coverage.txt"
+          ]
+        }
+      ]
     }
   ]
 }
