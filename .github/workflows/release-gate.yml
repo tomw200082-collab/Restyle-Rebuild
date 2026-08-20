@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write        # commits the scorecard entry back to the PR branch
+  contents: read
   pull-requests: write   # posts the verdict
 
 env:
@@ -37,8 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # The scorecard entry is committed back, so the checkout needs a ref
-          # it can push to rather than a detached merge commit.
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
@@ -106,17 +104,15 @@ jobs:
             quality/runs/
           retention-days: 30
 
-      - name: Commit the scorecard entry
-        # Only on a green run. Appending a failing entry to the PR branch would
-        # churn the diff on every attempt and bury the entry that matters.
-        if: success()
-        run: |
-          if git diff --quiet -- quality/scorecard.json; then
-            echo "No scorecard change to commit."
-            exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add quality/scorecard.json
-          git commit -m "chore(quality): scorecard entry for ${GITHUB_SHA:0:7}"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
+# The gate used to commit its scorecard entry back to the PR branch. It stopped,
+# because that bookkeeping blocked the merge it exists to authorise. [D-88]
+#
+# A push by github-actions[bot] does not run workflows the way a person's push
+# does: GitHub parks the resulting runs as `action_required` and never executes
+# them. So every green run left the PR pointing at a bot commit with no checks
+# — and `EXECUTION_POLICY.md` §L2 requires every required check on the PR to be
+# green. The gate's own record-keeping made the PR permanently un-mergeable
+# under the rule the gate exists to serve.
+#
+# The scorecard is still written, still uploaded as an artifact above, and still
+# rendered into the job summary. What is gone is only the commit back.

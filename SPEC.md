@@ -268,3 +268,7 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
 - **A count must reconcile against its own total.** Passed, flaky, skipped and
   did-not-run must add up to the number the suite announced, or tests went
   missing. "74 passed" and "77 ran" were both true of one run. `[D-86]`
+- **A gate may not move the head it is judging.** A `GITHUB_TOKEN` push parks
+  its workflow runs as `action_required` and never runs them, so committing
+  back to the PR branch leaves a head with no checks — un-mergeable under
+  §L2, by the gate's own doing. `[D-88]`
