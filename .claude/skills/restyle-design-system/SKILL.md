@@ -150,3 +150,32 @@ Admin may be denser — `body-sm` base, `32px` rows, more borders — but uses t
 ## Directional properties
 
 This is an RTL product. Every spacing, alignment, radius and icon direction decision must use logical properties. That rule and its full checklist live in the **hebrew-rtl-ui** skill — read it before writing any component with directional CSS.
+
+## Contrast is measured, never assumed
+
+Every primary and danger button rendered dark text on clay from the day this
+design system landed until a contrast audit found it. `tailwind-merge`
+classified the custom `text-body-sm` font-size utility as a **colour** utility
+and dropped `text-white` from the merge. `[D-51]`
+
+- **Assert the computed colour, in a browser.** The class list was correct right
+  up until the merge ran, so any assertion on `className` would have passed.
+- **A custom utility whose name starts with `text-` is a merge hazard.** If you
+  add one — a font size, a line height, a letter spacing — check that
+  `text-white`/`text-ink` still survives beside it, and extend
+  `tailwind-merge`'s config if it does not.
+- The `contrast` gate stage now measures every interactive element on every
+  public page at 390px, walking the ancestor chain for the real background and
+  flattening alpha. It is not a style opinion; it is the regression test for
+  this defect.
+
+## The RTL screenshot baseline
+
+`quality/baselines/*.sha256` holds a hash per static page of a masked, animation-
+disabled, 390px full-page render. Dynamic regions — images, times, prices — are
+masked, so a diff means an actual layout change.
+
+When a diff is intentional: look at the screenshot in `quality/runs/<stamp>/
+screenshots/`, then `npm run release-gate -- --update-baselines`, and say in the
+commit **what** changed. A baseline updated without a sentence explaining it is a
+baseline nobody will trust enough to enforce.

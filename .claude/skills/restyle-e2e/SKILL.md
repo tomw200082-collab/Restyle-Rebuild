@@ -154,3 +154,52 @@ A flaky test is a broken test. `retries: 0` locally so flake is visible; at most
 - Assert with `expect(locator)`, which auto-retries. `expect(await locator.textContent())` does not, and is the most common source of flake in this codebase's shape.
 - After a mutation, wait for the observable consequence (a badge changing to `המוכר אישר`), not for a network idle event.
 - ISR pages can serve stale content right after a mutation; in specs that mutate and immediately re-read, assert against the dashboard (dynamic) rather than the ISR page, or explicitly wait for the revalidated value.
+
+## The gate is the other half of the suite
+
+`npm run release-gate` runs this suite and nine more checks, and it is the only
+path to L2. `.claude/skills/restyle-release-gate/`.
+
+**The e2e suite refuses to run against a non-local target, by design.** It signs
+up buyers, sellers and an admin, creates listings and drives orders to payout.
+Against the production project that would be real users and real orders, so the
+gate's guard is not "can it run" but "is this a target we are allowed to write
+to" — only a localhost Supabase origin qualifies. CI supplies one with
+`supabase start`. If you find yourself wanting to relax that guard, you want a
+local stack instead.
+
+**A skipped check is never a pass.** The gate reports `pass` / `fail` /
+`skipped(reason)`, and skips alone still produce a `fail` verdict. When you add
+a check anywhere — a spec, a stage, an assertion — make its unavailable case
+loud. This project's five most expensive defects were all silent, and a check
+that quietly did nothing would have been the sixth.
+
+## Assertions that survive a context reset
+
+Three shapes of assertion have earned their place here, each from a real
+failure:
+
+- **Assert the status code**, not just the rendered text. A soft-404 renders,
+  so text assertions pass against it. `[D-49]`
+- **Assert the computed style**, not the class list. `tailwind-merge` dropped
+  `text-white` from every primary button while the class list stayed correct.
+  `[D-51]`
+- **Poll the terminal state as a whole**, not one field of it. A spec that
+  polled `status` on an order whose `refund_agorot` was written a moment later
+  passed twice and failed on the third run. No product code was wrong; the
+  assertion was reading a multi-write action mid-flight. `[D-60]`
+
+## Environment notes
+
+- **Playwright pins a browser revision** and refuses anything else, so an image
+  with a pre-installed Chromium has a working browser Playwright will not use.
+  `scripts/release-gate/browser.ts` falls back to a system Chromium and reports
+  which one it used.
+- **`server-only` throws in Vitest**, because the guard is a build-time contract
+  for Next resolved through the `react-server` condition. It is aliased to a
+  no-op in `vitest.config.ts` so unit tests can cover server modules — the kill
+  switch and the fee-engine config both carry it.
+- **Kill stray `next-server` processes before measuring anything.**
+  `pgrep -af next-server`. A detached `next start` keeps the port and serves a
+  deleted build, and every measurement afterwards describes a version that no
+  longer exists.

@@ -37,3 +37,7 @@ npm-debug.log*
 .vercel
 .turbo
 tsconfig.tsbuildinfo
+
+# release gate — screenshots are large and regenerated every run; the hashes in
+# quality/baselines are what the visual diff actually compares.
+quality/runs/*/screenshots/
