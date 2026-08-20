@@ -29,6 +29,10 @@ function tail(text: string, lines = 20): string {
   return text.trimEnd().split('\n').slice(-lines).join('\n');
 }
 
+function head(text: string, lines = 20): string {
+  return text.trim().split('\n').slice(0, lines).join('\n');
+}
+
 /**
  * Test runners colourise their summary when they think a terminal is watching,
  * and GitHub Actions is one of the places they think that. The escape codes land
@@ -85,11 +89,15 @@ export const buildStage: Stage = {
         const body = `${err.stdout ?? ''}\n${err.stderr ?? ''}\n${err.message ?? ''}`;
         logs.push(`### ${label}\nFAILED\n${body}`);
         const evidence = await writeEvidence(ctx, 'build.log', logs.join('\n\n'));
+        // Head *and* tail. A linter names the file first and summarises last,
+        // so a tail-only excerpt reports "185 errors" without saying in what —
+        // which is exactly the shape of a CI failure that cannot be diagnosed
+        // from the log.
         return {
           status: 'fail',
           detail: `${label} failed`,
           evidence: [evidence],
-          failures: [tail(body, 12)],
+          failures: [head(body, 12), tail(body, 12)],
         };
       }
     }

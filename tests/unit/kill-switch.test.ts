@@ -14,10 +14,14 @@ import { join } from 'node:path';
  *      to check" — every name in JOB_NAMES, enumerated, so a job added later
  *      fails this test if it somehow bypasses the guard.
  *
- * `runJob` is exercised with no Supabase configured at all. That is the point:
- * if the guard did not fire first, the job would reach createServiceSupabase()
- * and throw on the missing environment. A clean halt is therefore proof that
- * nothing downstream ran. CLAUDE.md §6, EXECUTION_POLICY.md.
+ * The halt cases assert `processed: 0` and `halted: true` for every job, which
+ * is what proves nothing downstream ran — locally, where no Supabase is
+ * configured, resolving at all is additional proof, since an unguarded job
+ * would throw reaching createServiceSupabase(). That is a bonus of the local
+ * environment and not something any assertion here depends on: CI has a real
+ * stack, and a test that only passes because the environment is broken is a
+ * test that breaks when the environment is fixed.
+ * CLAUDE.md §6, EXECUTION_POLICY.md.
  */
 
 const ORIGINAL_CWD = process.cwd();
@@ -96,8 +100,6 @@ describe('every cron job halts when the switch is thrown', () => {
     expect(JOB_NAMES.length).toBe(7);
 
     for (const job of JOB_NAMES) {
-      // Would throw on the missing Supabase environment if the guard did not
-      // fire first — so resolving at all is the proof.
       const result = await runJob(job);
       expect(result, job).toMatchObject({ job, processed: 0, halted: true });
       expect(result.details?.[0], job).toContain('kill switch active');
@@ -114,12 +116,23 @@ describe('every cron job halts when the switch is thrown', () => {
     }
   });
 
-  it('does not halt when the switch is absent — proved by the job reaching its dependencies', async () => {
+  it('does not halt when the switch is absent', async () => {
     const { runJob } = await import('@/lib/jobs');
 
-    // With no switch and no Supabase environment the job must get far enough to
-    // fail on its dependencies. If this ever resolves with halted:true the
-    // guard has become unconditional, which would silently stop production.
-    await expect(runJob('housekeeping')).rejects.toThrow();
+    // The guard must be conditional. An unconditional one would silently stop
+    // production and every other test in this file would still pass.
+    //
+    // What the job does *after* the guard is not this test's business, and the
+    // first version of it made that mistake: it asserted the job would reject,
+    // which was true only because no Supabase was configured. In CI, where one
+    // is, the job succeeded and the test failed — a green environment breaking
+    // a test that was really asserting "the environment is broken".
+    //
+    // So: whether it resolves or rejects, it must not be a halt.
+    const outcome = await runJob('housekeeping').then(
+      (result) => ({ ok: true as const, result }),
+      () => ({ ok: false as const, result: null }),
+    );
+    if (outcome.ok) expect(outcome.result.halted).toBeFalsy();
   });
 });

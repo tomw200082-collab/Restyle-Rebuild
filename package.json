@@ -34,7 +34,9 @@
     "drift-check": "tsx scripts/drift-check.ts",
     "scorecard": "tsx scripts/scorecard-summary.ts",
     "demo:seed": "tsx scripts/demo-content.ts",
-    "purge-demo": "tsx scripts/purge-demo.ts"
+    "purge-demo": "tsx scripts/purge-demo.ts",
+    "brief": "tsx brain/daily-brief.ts",
+    "weekly": "tsx brain/weekly-report.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
