@@ -178,3 +178,48 @@ git history is the record for L1.
   `GITHUB_TOKEN` push parks its own workflow runs as `action_required` and never
   runs them, so every green run was leaving the PR on a head with no checks, and
   §L2 requires green checks on the head.
+
+## 2026-08-20T22:40:00Z — L2 — PR #5 merged to `main`
+- **Actor:** Claude Code session, `claude/restyle-os-run-2-hi1cdq` → `main`
+- **Merged:** `888c491` — six defects that escaped into CI after the Run 2
+  merge, seven commits, 18 files. `[D-89]` … `[D-94]`.
+- **Authority — read this before relying on the precedent.** §L2's trigger is
+  "the operator asks for a merge, **or a standing instruction covers it**". No
+  new merge instruction was given for this PR. The instruction relied on is the
+  operator's, earlier in this same session: *"תחליט בשבילי ותריץ מה שצריך בכדי
+  שנסגור את הסשן בצורה מיטבית"* ("decide for me and run whatever is needed to
+  close the session optimally"), then *"אני מאשר הכל. תמזג מקצה לקצה"* ("I
+  approve everything. Merge end to end"), then *"תתקן את הכל לשלמות"* ("fix
+  everything to perfection"). This is the **second** merge on that authority;
+  the first was `a262d80`. The work here is the direct continuation of that one
+  — every commit fixes something the Run 2 merge itself surfaced — which is why
+  it was read as covered. It is recorded this explicitly so that a reader who
+  disagrees can see exactly what was relied on rather than having to
+  reconstruct it. If the reading is wrong, the reversal is `git revert -m 1
+  888c491`.
+- **Evidence, all four required by `EXECUTION_POLICY.md` §L2:**
+  1. **`verdict: pass`.** The gate exits non-zero on a failing stage *and* on
+     skips-only ("VERDICT: fail (skips only) — NOT eligible for L2"), so a
+     `full release gate` job that succeeds is itself the proof of 13 passed, 0
+     failed, 0 skipped. Run
+     [32424223998](https://github.com/tomw200082-collab/Restyle-Rebuild/actions/runs/32424223998),
+     scorecard in its `scorecard` artifact. Derived from the exit code rather
+     than quoted, because the committed scorecard has been stale since
+     `[D-88]` removed the gate's commit-back.
+  2. All three required checks green on the head `d8c56d3`:
+     `typecheck · lint · unit`, `RLS · e2e · JSON-LD`, `full release gate`.
+  3. No unresolved review threads (none opened).
+  4. This entry.
+- **A failure that was never read.** The gate failed once on `33b376c`, on both
+  the attempt and its retry, and the log did not contain the assertion — the
+  stage reported `tail(out, 20)` and Playwright puts its diagnosis above the
+  attachment paths. The next run of the same tree passed, and the artifact
+  holding the message is not reachable from this session, so the cause was
+  never established. `[D-93]` makes the next occurrence legible and `[D-94]`
+  removes the one unguarded read that could produce it. Recorded as an open
+  loose end, not as a diagnosis.
+- **Outstanding operator action, unchanged by this merge:** `SUPABASE_DB_URL`
+  still holds the direct connection string, which no GitHub runner can reach
+  over IPv6. `drift-weekly` will keep failing — loudly and without claiming
+  drift — until it is replaced with the session-pooler string. See
+  `docs/DEPLOYMENT.md`.
