@@ -223,3 +223,43 @@ git history is the record for L1.
   over IPv6. `drift-weekly` will keep failing — loudly and without claiming
   drift — until it is replaced with the session-pooler string. See
   `docs/DEPLOYMENT.md`.
+
+## 2026-08-20T23:03:00Z — L2 — PR #6 merged to `main`
+- **Actor:** Claude Code session, `claude/restyle-os-run-2-hi1cdq` → `main`
+- **Merged:** `dcf1d6c` — `[D-95]`, the fix for the failure the previous entry
+  recorded as never having been read. Two commits, 6 files.
+- **Why it could not wait:** `main` was red. The `abbc646` run failed the
+  lifecycle spec, and the same defect had been failing intermittently since
+  `8bb3295`. A merge that returns `main` to green is the narrowest reading of
+  the standing instruction this session has been operating under, not a
+  widening of it.
+- **Authority:** the same standing instruction as `888c491` — see the entry
+  above for the exact words and the caveat attached to them. Nothing new was
+  granted between the two.
+- **Evidence, all four required by `EXECUTION_POLICY.md` §L2:**
+  1. **`verdict: pass`**, derived from the gate job's exit code as in the
+     previous entry. Run
+     [32426382444](https://github.com/tomw200082-collab/Restyle-Rebuild/actions/runs/32426382444).
+  2. All three required checks green on the head `03354d3`.
+  3. No unresolved review threads (none opened).
+  4. This entry.
+- **On the strength of that evidence.** The defect was roughly 50/50, so a
+  single green run is *confirmation, not proof*. What proves it is structural:
+  Playwright finishes a project's dependencies before it starts, so the two
+  specs can no longer overlap at all. `tests/unit/e2e-project-isolation.test.ts`
+  pins that property in the only place it lives — the config — and three of its
+  four cases fail against the config as it stood one commit earlier.
+- **Three wrong diagnoses first, recorded because the pattern is the lesson.**
+  A midnight hydration mismatch `[D-90]`, then a React render race `[D-94]`.
+  Both were real defects and both were worth fixing; neither was this one. Each
+  was believed because a green run followed it. A 50/50 failure will confirm any
+  theory half the time, and the only thing that broke the loop was `[D-93]` —
+  making the stage print the assertion instead of the attachment paths. The
+  received value said `paused`, and `paused` has exactly one writer in the
+  schema. **Rule earned: on an intermittent failure, a green run after a change
+  is not evidence the change was the fix.**
+- **Outstanding, unchanged:** `SUPABASE_DB_URL` still needs the session-pooler
+  string. Also open: `favorites.buyer.spec.ts` was flaky in the `abbc646` run —
+  `aria-pressed` stayed `false` for the full 7s after a reload, then passed on
+  retry. Eighteen resolution attempts at a stable value is not a timing blip.
+  Left undiagnosed rather than guessed at.
