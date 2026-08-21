@@ -1,5 +1,5 @@
 # Close the remaining Run 1 open items
-_Plan | 2026-08-21 | Status: active_
+_Plan | 2026-08-21 | Status: done_
 
 ## Goal
 
@@ -104,3 +104,34 @@ check ran and produced a decision.
   operator removes it from the Supabase dashboard.
 - The merge: `git revert -m 1 <merge sha>` as a new commit; the merge itself is
   never rewritten.
+
+---
+
+## Closing note
+
+Six phases, six gates, all evidenced. Two changed shape against the plan and the
+changes are worth more than the plan was.
+
+**Phase 1 inverted.** It was written as "create the admin user". The live
+`site_config.admin_email` turned out to be empty, which makes setting it L5 —
+and makes *creating the user* actively harmful, because the grant fires once at
+INSERT and the `on conflict` branch never touches `role`. Doing the requested
+thing would have permanently burned the address. The phase became "make the trap
+impossible to walk into": the `SPEC.md` invariant, a `/go-no-go` check that
+asserts the row instead of the environment variable, the dead `env.adminEmail`
+accessor removed, and the operator handed two ordered commands. `[D-96]`
+
+**Phase 2 needed a whole stack.** L2 evidence item 1 had become unobtainable —
+the gate stopped committing its scorecard (correctly), and CI's artifact lives on
+a host this sandbox's egress refuses. Rather than hand-write the evidence the
+policy asks for, the local stack was rebuilt from nothing: `initdb`, 31
+migrations, PostgREST, gateway, seed. The gate then ran for real and returned
+**13 passed, 0 failed, 0 skipped** — a better result than CI's own, because with
+a database present the RLS and e2e stages are passes rather than allowed skips.
+
+**Phase 6 returned NO-GO, which is the gate working.** The blocker is check 4
+and it is L5. Recorded in `quality/go-no-go-2026-08-21.md` with the three steps
+that would change it.
+
+Out of scope held: the Base44 export was never delivered, and ADR-002 stays
+*Proposed* with `commission_pct` frozen at 20.

@@ -280,3 +280,44 @@ git history is the record for L1.
   `SPEC.md` invariant, a `/go-no-go` check that asserts the row rather than the
   environment variable, and the two ordered commands in
   `docs/HANDOFF_RUN2.md`. `[D-96]`
+
+## 2026-08-21T13:05:00Z — L2 — merged PR #2 to `main`
+- **Actor:** Claude Code session, branch `claude/restyle-rebuild-cqh3d5`
+- **Evidence:** merge commit `a3cfe7d118ade9bef8ca5b52f3d9bb4876f6f603`;
+  scorecard entry `ed040b7` — `verdict: pass`, 13 passed / 0 failed / **0
+  skipped**, `quality/runs/2026-08-21T12-45-23-290Z`; all three required checks
+  green on `4261bde` first attempt; zero review threads
+- **Notes:** Trigger was the operator's standing instruction of 2026-08-21, "do
+  everything yourself, by any means possible" — the §L2 clause "or a standing
+  instruction covers it". Two honest caveats rather than none. The scorecard
+  entry names `ed040b7` and not the merged head, because an entry cannot name
+  the commit that carries it; the delta between them is the scorecard file and
+  its evidence directory, no product code. And this entry is written *after* the
+  merge, because evidence item 4 requires naming the merge commit, which does
+  not exist until the merge does — the same ordering `270b3cf` and `abbc646`
+  used. The gate ran against a locally rebuilt stack (initdb, 31 migrations,
+  PostgREST, seed), which is why RLS and e2e are passes here rather than
+  allowed skips.
+
+## 2026-08-21T13:08:00Z — L2 — created tag `v0.1.0` via `tag-release.yml`
+- **Actor:** Claude Code session, dispatching the workflow on `main`
+- **Evidence:** `git ls-remote --tags origin` →
+  `49784645719cf60f0f5fedf723181664d1e1375b refs/tags/v0.1.0` dereferencing to
+  `983ea589bde4f3cdd8becdf1bd8ae80fc97fbea6`
+- **Notes:** The session cannot push tags — every ref under `refs/tags/` returns
+  403, as do `POST /git/tags` and `POST /git/refs`. The workflow holds the
+  `contents: write` the session does not, and refused nothing on this run
+  because all five guards passed: semver name, 40-character SHA, commit exists,
+  tag absent, and the SHA is an ancestor of `main`. `v0.1.0` names **Run 1's**
+  release point, `983ea58`, not the current head — `main` has moved on through
+  Run 2. `[D-97]`
+
+## 2026-08-21T13:12:00Z — L3 NOT ATTEMPTED — `/go-no-go` returned NO-GO
+- **Actor:** Claude Code session
+- **Evidence:** `quality/go-no-go-2026-08-21.md`
+- **Notes:** Check 4 fails substantively: `site_config.admin_email` is empty and
+  no admin profile exists, so the platform has no operator. Setting that row is
+  L5. Check 2 fails structurally — a scorecard cannot name the commit that
+  carries it. Checks 1, 3 and 5 pass, including object-level schema parity at
+  400 objects per side. Not deployed, and no attempt made to route around
+  either failure.
