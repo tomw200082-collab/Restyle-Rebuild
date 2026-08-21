@@ -46,6 +46,33 @@ const ANSI = /\u001b\[[0-9;]*m/g;
 const stripAnsi = (output: string) => output.replace(ANSI, '');
 
 /**
+ * The part of a Playwright run that says what went wrong. [D-93]
+ *
+ * The list reporter prints each failure as a numbered block — the test, then
+ * the assertion, the locator, the expected and received values — and *after*
+ * all of them the attachment paths and the one-line summary. `tail()` therefore
+ * lands squarely on the attachment paths: this stage announced "e2e suite
+ * failed" above twenty lines of screenshot filenames and a `show-trace`
+ * command, and the reason the suite failed appeared nowhere in the CI log.
+ *
+ * The whole output is in `e2e.log` either way, but a failure that can only be
+ * read by downloading an artifact is a failure most people will guess at
+ * instead. Print the block, and fall back to the tail when there is no numbered
+ * block to find — a run that dies before any test starts has no failure blocks
+ * and its last lines are exactly what is wanted.
+ */
+export function playwrightFailure(text: string, lines = 40): string {
+  const all = stripAnsi(text).trimEnd().split('\n');
+  const first = all.findIndex((line) => /^\s{0,4}\d+\)\s/.test(line));
+  if (first < 0) return tail(text, lines);
+
+  const block = all.slice(first, first + lines);
+  const remaining = all.length - (first + block.length);
+  if (remaining > 0) block.push(`… ${remaining} more lines in the e2e log`);
+  return block.join('\n');
+}
+
+/**
  * Parses a count out of a runner's summary, and **throws** when it cannot.
  *
  * The version of this that returned `?? 0` reported "0 unit tests passed" as a
@@ -281,7 +308,7 @@ export const e2eStage: Stage = {
         status: 'fail',
         detail: err.stdout || err.stderr ? 'e2e suite failed' : (err.message ?? 'e2e suite failed'),
         evidence: [evidence],
-        failures: [tail(out, 20)],
+        failures: [playwrightFailure(out)],
       };
     }
   },

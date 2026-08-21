@@ -2,12 +2,18 @@
 
 shellcheck 0.9.0 enabled; pyflakes absent (no Python steps in these workflows).
 
+Re-run after `drift-weekly.yml` grew a multi-line `run:` block — the one place
+in these workflows where shellcheck has real shell to read. [D-92]
+
 ```
+$ actionlint -version
+1.7.12
+
 $ actionlint -verbose
 verbose: Found total 0 errors in 0 ms for .github/workflows/claude.yml
-verbose: Found total 0 errors in 55 ms for .github/workflows/ci.yml
-verbose: Found total 0 errors in 72 ms for .github/workflows/drift-weekly.yml
-verbose: Found total 0 errors in 76 ms for .github/workflows/release-gate.yml
+verbose: Found total 0 errors in 889 ms for .github/workflows/ci.yml
+verbose: Found total 0 errors in 862 ms for .github/workflows/drift-weekly.yml
+verbose: Found total 0 errors in 888 ms for .github/workflows/release-gate.yml
 verbose: Found 0 errors in 4 files
 exit 0
 ```

@@ -104,6 +104,21 @@ jobs:
             quality/runs/
           retention-days: 30
 
+      - name: Upload the e2e trace and screenshots
+        if: always()
+        # `ci.yml` has kept these since Run 2 and the gate did not, so a test
+        # that failed only under the gate could be read as a name and a
+        # timeout and nothing else. The trace is the artefact that turns
+        # "toBeVisible failed" into a cause. [D-93]
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-e2e-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
 # The gate used to commit its scorecard entry back to the PR branch. It stopped,
 # because that bookkeeping blocked the merge it exists to authorise. [D-88]
 #

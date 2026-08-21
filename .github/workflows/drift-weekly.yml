@@ -68,7 +68,11 @@ jobs:
         run: |
           if [ -z "${SUPABASE_DB_URL}" ]; then
             echo "SUPABASE_DB_URL is not set. Add it in Settings → Secrets → Actions."
-            echo "Supabase → Project Settings → Database → Connection string (URI)."
+            echo
+            echo "Take the SESSION POOLER string: Supabase → Connect → Session pooler."
+            echo "Not the direct one — db.<ref>.supabase.co is IPv6-only and these"
+            echo "runners have no IPv6 route. The pooler username carries the project"
+            echo "ref, so it reads postgres.<ref>, not plain postgres."
             exit 1
           fi
 
@@ -95,10 +99,24 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            let report = {};
+            let report = null;
             try { report = JSON.parse(fs.readFileSync('quality/drift-check.json', 'utf8')); } catch {}
 
-            const drifted = (report.drifted ?? []).join(', ') || 'unknown';
+            // A failed run is not a measurement. The check writes its report
+            // only after it has compared both sides, so no report means nothing
+            // was compared — and "Schema drift: unknown … Still drifting" is
+            // then a claim nobody made. It has been posted twice already, both
+            // times because the remote was unreachable. Say nothing rather than
+            // say that; the run still fails, loudly, in the step below. [D-92]
+            if (!report?.drifted?.length) {
+              core.notice(
+                'The drift check did not complete, so no comparison exists to report. ' +
+                'No issue opened — see the failing step for why it could not run.',
+              );
+              return;
+            }
+
+            const drifted = report.drifted.join(', ');
             const title = `Schema drift: ${drifted}`;
 
             const existing = await github.rest.issues.listForRepo({
@@ -151,6 +169,17 @@ jobs:
               });
             }
 
-      - name: Fail the run when drift was found
+      - name: Fail the run, naming which of the two happened
         if: steps.drift.outcome == 'failure'
-        run: exit 1
+        run: |
+          if [ -f quality/drift-check.json ]; then
+            echo "Schema drift found. See the schema-drift issue and the step summary."
+          else
+            echo "The drift check could not complete, so nothing was compared."
+            echo
+            echo "Check SUPABASE_DB_URL first. The direct host db.<ref>.supabase.co is"
+            echo "IPv6-only and GitHub runners have no IPv6 route; CI needs the session"
+            echo "pooler string, whose username carries the project ref:"
+            echo "  postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+          fi
+          exit 1

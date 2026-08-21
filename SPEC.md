@@ -272,3 +272,26 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   its workflow runs as `action_required` and never runs them, so committing
   back to the PR branch leaves a head with no checks — un-mergeable under
   §L2, by the gate's own doing. `[D-88]`
+- **A credential never travels in argv.** psql quoted a malformed password
+  back in an error and it landed in a public CI log; secret masking cannot
+  catch a fragment of the string it was given. Use `PG*` environment
+  variables, and scrub anything on its way to a log. `[D-89]`
+- **No client component derives a date from its own clock.** The server and the
+  browser run the same line at different instants; either side of midnight they
+  disagree, React re-renders the subtree, and the control the user is operating
+  detaches. Compute it on the server and pass it down. `[D-90]`
+- **A job reports only what it measured.** No comparison means no drift claim,
+  however loudly the run failed. `drift-weekly` posted "Schema drift: unknown"
+  and then "Still drifting" on two runs that never reached the remote at all.
+  `[D-92]`
+- **A failing check prints what failed.** Not the last lines it produced — a
+  runner puts its diagnosis above the attachments, so a tail lands on
+  screenshot filenames. The gate announced "e2e suite failed" with nothing in
+  the log naming the assertion. `[D-93]`
+- **A derived control is asserted populated before it is read.** A select whose
+  options come from another select gets them one render later, and
+  `evaluateAll` does not retry the way an assertion does. `[D-94]`
+- **A spec that mutates a shared fixture globally runs alone, after everything
+  else.** The seller-pause cron pauses every listing its seller has, and that
+  seller is the one every fixture uses. Running it beside the others paused a
+  listing another spec had just approved. `[D-95]`
