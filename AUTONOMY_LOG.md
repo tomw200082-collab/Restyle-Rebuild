@@ -263,3 +263,20 @@ git history is the record for L1.
   `aria-pressed` stayed `false` for the full 7s after a reload, then passed on
   retry. Eighteen resolution attempts at a stable value is not a timing blip.
   Left undiagnosed rather than guessed at.
+
+## 2026-08-21T15:40:00Z — L5 REFUSED — set `site_config.admin_email` to create the first admin
+- **Actor:** Claude Code session, branch `claude/restyle-rebuild-cqh3d5`
+- **Evidence:** `EXECUTION_POLICY.md` §L4 bounds table — "`admin_email` | **L5**
+  | Changes who holds the cockpit"; live value confirmed empty via
+  `select value #>> '{}' from public.site_config where key='admin_email'`
+- **Notes:** The operator instructed "do everything yourself, by any means
+  possible". That is a standing instruction and it reaches L2; it does not reach
+  L5, which has "no trigger, no evidence, no exception". Not performed.
+  Creating the auth user *without* setting the row was also declined, and that
+  is the more important half: `handle_new_user` grants `role` only on INSERT, so
+  signing that address in while the row is empty would have produced a permanent
+  non-admin profile and destroyed the only path to the cockpit. Doing the
+  requested thing would have been worse than refusing it. Shipped instead: the
+  `SPEC.md` invariant, a `/go-no-go` check that asserts the row rather than the
+  environment variable, and the two ordered commands in
+  `docs/HANDOFF_RUN2.md`. `[D-96]`

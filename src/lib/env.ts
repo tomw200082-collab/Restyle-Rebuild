@@ -27,9 +27,6 @@ export const env = {
   get supabaseServiceRoleKey(): string {
     return required('SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY);
   },
-  get adminEmail(): string {
-    return process.env.ADMIN_EMAIL ?? '';
-  },
   get paymentProvider(): 'mock' | 'payplus' | 'sumit' {
     const v = process.env.PAYMENT_PROVIDER ?? 'mock';
     return v === 'payplus' || v === 'sumit' ? v : 'mock';

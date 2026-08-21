@@ -33,3 +33,32 @@ A deliberately broken workflow, fed on stdin:
   |                        ^~~~~~~~~~~
 exit 1
 ```
+
+---
+
+Re-run after `tag-release.yml` was added — the workflow with the most real shell
+in the repository, so the shellcheck rule is the point of this run rather than a
+formality. Recorded with the rule's state explicitly, because actionlint
+*disables* shellcheck with a `verbose:` line and still exits 0 when the binary
+is missing: a clean exit with the relevant rule switched off is the silent green
+this project keeps finding. [D-71]
+
+```
+$ actionlint -version
+1.7.7
+
+$ shellcheck --version | head -2
+ShellCheck - shell script analysis tool
+version: 0.9.0
+
+$ actionlint -verbose 2>&1 | grep -c 'Rule "shellcheck" was disabled'
+0
+
+$ actionlint -verbose
+verbose: Found total 0 errors in 33 ms for .github/workflows/drift-weekly.yml
+verbose: Found total 0 errors in 50 ms for .github/workflows/release-gate.yml
+verbose: Found total 0 errors in 59 ms for .github/workflows/tag-release.yml
+verbose: Found total 0 errors in 86 ms for .github/workflows/ci.yml
+verbose: Found 0 errors in 5 files
+exit 0
+```

@@ -1,0 +1,110 @@
+name: tag-release
+
+# Creating a tag from inside Actions, because a session cannot.
+#
+# The build sessions run with credentials scoped to their own branch: every push
+# to `refs/tags/` returns 403, and so do `POST /git/tags` and `POST /git/refs`
+# through the API proxy. That is a reasonable scope for an agent and a poor one
+# for a release, so the capability lives here instead — in a workflow the
+# operator can read, that runs only when a human dispatches it, and that leaves
+# a run log naming who asked and for what. `GITHUB_TOKEN` holds the
+# `contents: write` the session does not. [D-97]
+#
+# Deliberately not `on: push` to a branch or to main: a tag that appears because
+# a commit landed is a tag nobody decided to create.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name, e.g. v0.1.0'
+        required: true
+        type: string
+      sha:
+        description: 'Full 40-character commit SHA to tag'
+        required: true
+        type: string
+      message:
+        description: 'Annotation for the tag'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: create an annotated tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate the inputs before touching any ref
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+
+          # A tag name is a published identifier; reject anything that is not
+          # the shape this project uses rather than discovering it later.
+          if ! printf '%s' "$INPUT_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$INPUT_TAG' is not a semver tag name (expected vMAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+
+          if ! printf '%s' "$INPUT_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::'$INPUT_SHA' is not a full 40-character commit SHA"
+            exit 1
+          fi
+
+          # A short SHA would resolve, and would let two different commits share
+          # a prefix and a release. Full or nothing.
+          if ! git cat-file -e "${INPUT_SHA}^{commit}" 2>/dev/null; then
+            echo "::error::$INPUT_SHA is not a commit in this repository"
+            exit 1
+          fi
+
+          # Never move a tag that already exists. A release that changes what it
+          # points at is worse than no release: every checkout of it before now
+          # was a different tree.
+          if git ls-remote --exit-code --tags origin "refs/tags/$INPUT_TAG" >/dev/null 2>&1; then
+            echo "::error::$INPUT_TAG already exists on the remote; refusing to move it"
+            exit 1
+          fi
+
+          # A tag is only meaningful if it is reachable from a branch — an
+          # orphaned one names a tree that no history contains.
+          if ! git merge-base --is-ancestor "$INPUT_SHA" origin/main; then
+            echo "::error::$INPUT_SHA is not an ancestor of main"
+            exit 1
+          fi
+
+      - name: Create and push the tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SHA: ${{ inputs.sha }}
+          INPUT_MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$INPUT_TAG" "$INPUT_SHA" -m "$INPUT_MESSAGE"
+          git push origin "refs/tags/$INPUT_TAG"
+
+      - name: Report what now exists
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Tagged"
+            echo
+            echo '```'
+            git ls-remote --tags origin "refs/tags/$INPUT_TAG"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
