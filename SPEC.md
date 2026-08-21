@@ -295,3 +295,13 @@ Each of these was added in the same PR as the fix for a bug that escaped. See
   else.** The seller-pause cron pauses every listing its seller has, and that
   seller is the one every fixture uses. Running it beside the others paused a
   listing another spec had just approved. `[D-95]`
+- **The admin grant is one-shot, and it reads the config row — not the
+  environment.** `handle_new_user` sets `role` only on the INSERT; its
+  `on conflict do update` refreshes email and name and deliberately never
+  touches `role`. So the first sign-in by the intended address while
+  `site_config.admin_email` is empty creates a permanent `role='user'` profile,
+  and setting `admin_email` afterwards changes nothing. The row must be set
+  **before** that first sign-in. `ADMIN_EMAIL` in the environment is not that
+  row: outside `db/seed.ts` — a staging tool — nothing writes one from the
+  other, so a check that asserts the variable has not checked the grant.
+  `[D-96]`

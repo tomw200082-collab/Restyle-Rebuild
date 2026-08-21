@@ -23,8 +23,13 @@ does not compensate for an earlier one failing.
      provider is L5**, so confirm rather than assume;
    - `CRON_SECRET` is set and is not the example value. These endpoints cancel
      orders and issue refunds;
-   - `ADMIN_EMAIL` is set. Without it the first sign-in grants nobody the admin
-     role and the cockpit has no operator;
+   - **`site_config.admin_email` is non-empty, and no profile exists for that
+     address yet.** This is the row `handle_new_user` reads; `ADMIN_EMAIL` in
+     the environment is a different value that nothing copies into it outside
+     `db/seed.ts`. Assert the row, not the variable. And assert the trap is
+     unsprung: the grant happens once, at INSERT, so an existing profile for
+     that address means the cockpit can no longer be claimed through sign-in.
+     `[D-96]`;
    - `NEXT_PUBLIC_SITE_URL` is the real origin. Every canonical, OG URL, sitemap
      entry and email link is built from it.
 5. **Migrations applied.** No local migration file absent from the remote ledger.

@@ -18,13 +18,40 @@ For what *was* done and how it was proved, see `docs/RECONCILIATION.md` and
 
 ## Blocking a first sign-in
 
-**Still open: no admin user exists.** `profiles` with `role='admin'` is **0**.
-Three accounts have since appeared — `auth.users` is 3 and `profiles` is 3,
-where Run 1 measured 0 and 0 — but none holds the admin role, so the
-`handle_new_user` trigger has still never granted it. `ADMIN_EMAIL` is set to
-`tom@gteveryday.com` in the local `.env.local`, but it is not yet set anywhere
-a deployed instance would read it; whoever signs in first with that address
-becomes the admin, so it must be that address and it must be first.
+**Still open: no admin user exists, and the earlier advice here was wrong.**
+`profiles` with `role='admin'` is **0**, and `site_config.admin_email` is the
+**empty string** on the live project. Three accounts now exist — the demo
+sellers — but none is the operator.
+
+This section previously said "whoever signs in first with that address becomes
+the admin, so it must be that address and it must be first." That is unsafe as
+things stand. `handle_new_user` sets `role` only on INSERT, and its
+`on conflict do update` never touches `role`; with `admin_email` empty, a first
+sign-in creates a permanent `role='user'` profile and setting `admin_email`
+afterwards changes nothing. **Signing in first, right now, would burn the
+address rather than claim the cockpit.** `[D-96]`
+
+`ADMIN_EMAIL` in the environment is not the same value: the only thing that
+copies it into `site_config` is `db/seed.ts`, which also creates fake listings
+and known-password accounts, so it must never run against production.
+
+The order is not optional — set the row, then sign in:
+
+```sql
+-- 1. As the operator, in the Supabase SQL editor:
+update public.site_config set value = to_jsonb('tom@gteveryday.com'::text)
+ where key = 'admin_email';
+```
+
+```
+-- 2. Then, and only then, sign in once at /login with that address.
+--    The OTP tab needs no password; the trigger grants admin on the insert.
+```
+
+Setting that row is **L5** under `EXECUTION_POLICY.md` — "`admin_email` | **L5**
+| Changes who holds the cockpit" — so no agent may do step 1, in any session,
+under any instruction. It is two minutes of operator time and it unblocks
+everything else on this page.
 
 ## Blocking anything visible
 
